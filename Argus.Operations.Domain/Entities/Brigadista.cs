@@ -10,4 +10,9 @@ public class Brigadista
     public string Funcao { get; set; } = string.Empty;
     public bool Ativo { get; set; } = true;
     public DateTime DataAdmissao { get; set; }
+
+
+     // Relacionamento: a qual brigada este brigadista pertence
+    public long BrigadaId { get; set; }
+    public Brigada? Brigada { get; set; }
 }

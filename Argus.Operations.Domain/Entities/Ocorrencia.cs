@@ -12,7 +12,16 @@ public class Ocorrencia
     public DateTime DataAbertura { get; set; }
     public DateTime? DataFinalizacao { get; set; }
 
-    // Relacionamento: qual brigadista registrou esta ocorrência
+  // Relacionamento: qual brigadista é responsável (interno .NET)
     public long BrigadistaId { get; set; }
     public Brigadista? Brigadista { get; set; }
+
+    // Relacionamento: qual brigada está atendendo (interno .NET)
+    public long BrigadaId { get; set; }
+    public Brigada? Brigada { get; set; }
+
+    // Relacionamento cross-domain: alerta de origem (do Java)
+    // Nullable porque a ocorrência pode ser criada manualmente sem alerta
+    // FK formal será adicionada via ALTER TABLE no script de banco consolidado
+    public long? AlertaId { get; set; }
 }
