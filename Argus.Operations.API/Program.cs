@@ -5,6 +5,7 @@ using Argus.Operations.Application.Auth;
 using Argus.Operations.Infrastructure.Auth;
 using Argus.Operations.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -18,6 +19,10 @@ builder.Services.AddControllers();
 // ===== Tratamento global de exceções =====
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+
+// ===== Health Checks (app + Oracle via DbContext) =====
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<ArgusDbContext>(name: "oracle-db");
 
 // ===== Swagger/OpenAPI com suporte a Bearer JWT =====
 builder.Services.AddEndpointsApiExplorer();
@@ -127,5 +132,28 @@ if (!app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// ===== Endpoint de Health Check com resposta JSON detalhada =====
+// Público (sem auth) pra ferramentas de monitoring/load balancer conseguirem pingar.
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var payload = new
+        {
+            status = report.Status.ToString(),
+            totalDurationMs = report.TotalDuration.TotalMilliseconds,
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                durationMs = e.Value.Duration.TotalMilliseconds,
+                error = e.Value.Exception?.Message
+            })
+        };
+        await context.Response.WriteAsJsonAsync(payload);
+    }
+});
 
 app.Run();
