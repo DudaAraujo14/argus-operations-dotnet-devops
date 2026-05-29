@@ -1,5 +1,6 @@
 using Argus.Operations.Domain.Entities;
 using Argus.Operations.Infrastructure.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,6 +8,7 @@ namespace Argus.Operations.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class RegistrosCampoController : ControllerBase
 {
     private readonly ArgusDbContext _context;
