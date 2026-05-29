@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text;
+using Argus.Operations.API.Exceptions;
 using Argus.Operations.Application.Auth;
 using Argus.Operations.Infrastructure.Auth;
 using Argus.Operations.Infrastructure.Data;
@@ -13,6 +14,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ===== Serviços =====
 builder.Services.AddControllers();
+
+// ===== Tratamento global de exceções =====
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 // ===== Swagger/OpenAPI com suporte a Bearer JWT =====
 builder.Services.AddEndpointsApiExplorer();
@@ -98,6 +103,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+// ===== Tratamento global de exceções (precisa vir antes de tudo no pipeline) =====
+app.UseExceptionHandler();
 
 // ===== Seed do admin (executa uma vez no startup) =====
 await AdminSeeder.SeedAsync(app.Services);
