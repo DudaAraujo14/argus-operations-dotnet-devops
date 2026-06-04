@@ -1,4 +1,6 @@
 using Argus.Operations.API.Auth;
+using Argus.Operations.API.DTOs.Usuarios;
+using Argus.Operations.Application.Auth;
 using Argus.Operations.Domain.Entities;
 using Argus.Operations.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -13,40 +15,58 @@ namespace Argus.Operations.API.Controllers;
 public class UsuariosController : ControllerBase
 {
     private readonly ArgusDbContext _context;
+    private readonly IPasswordHasher _hasher;
 
-    // Injeção de dependência: o .NET nos entrega o DbContext via construtor
-    public UsuariosController(ArgusDbContext context)
+    public UsuariosController(ArgusDbContext context, IPasswordHasher hasher)
     {
         _context = context;
+        _hasher = hasher;
     }
 
-    // GET /api/usuarios → lista todos os usuários
+    // GET /api/usuarios → lista todos os usuários (sem SenhaHash no retorno)
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Usuario>>> GetAll()
+    public async Task<ActionResult<IEnumerable<UsuarioDetalheResponse>>> GetAll()
     {
         var usuarios = await _context.Usuarios.ToListAsync();
-        return Ok(usuarios);
+        return Ok(usuarios.Select(ToResponse));
     }
 
     // GET /api/usuarios/7 → busca um usuário pelo Id
     [HttpGet("{id}")]
-    public async Task<ActionResult<Usuario>> GetById(long id)
+    public async Task<ActionResult<UsuarioDetalheResponse>> GetById(long id)
     {
         var usuario = await _context.Usuarios.FindAsync(id);
 
         if (usuario == null)
             return NotFound();
 
-        return Ok(usuario);
+        return Ok(ToResponse(usuario));
     }
 
-    // POST /api/usuarios → cria um usuário novo (senha vira hash futuramente, quando entrar JWT)
+    // POST /api/usuarios → cria um usuário novo. Recebe senha pura, hasheia
+    // aqui via IPasswordHasher — cliente nunca manda hash, e a resposta nunca
+    // o devolve. Email duplicado → 409 (também coberto pela constraint UNIQUE
+    // no banco via GlobalExceptionHandler, mas validamos antes pra mensagem clara).
     [HttpPost]
-    public async Task<ActionResult<Usuario>> Create(Usuario usuario)
+    public async Task<ActionResult<UsuarioDetalheResponse>> Create(CreateUsuarioRequest request)
     {
-        var emailJaExiste = await _context.Usuarios.AnyAsync(u => u.Email == usuario.Email);
+        var emailJaExiste = await _context.Usuarios.AnyAsync(u => u.Email == request.Email);
         if (emailJaExiste)
             return Conflict("Já existe um usuário com este email.");
+
+        var usuario = new Usuario
+        {
+            Nome = request.Nome,
+            Email = request.Email,
+            Telefone = request.Telefone,
+            NomeEmergencia = request.NomeEmergencia,
+            TelefoneEmergencia = request.TelefoneEmergencia,
+            RelacaoEmergencia = request.RelacaoEmergencia,
+            SenhaHash = _hasher.Hash(request.Senha),
+            Perfil = request.Perfil,
+            Ativo = true,
+            DataCriacao = DateTime.UtcNow
+        };
 
         _context.Usuarios.Add(usuario);
         await _context.SaveChangesAsync();
@@ -54,22 +74,29 @@ public class UsuariosController : ControllerBase
         return CreatedAtAction(
             nameof(GetById),
             new { id = usuario.Id },
-            usuario
+            ToResponse(usuario)
         );
     }
 
-    // PUT /api/usuarios/7 → atualiza um usuário existente
+    // PUT /api/usuarios/7 → atualiza um usuário existente. Não troca senha
+    // (fluxo dedicado fica pra entrega futura) e não permite mexer em SenhaHash,
+    // DataCriacao ou UltimoLogin — campos internos sob controle do servidor.
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(long id, Usuario usuario)
+    public async Task<IActionResult> Update(long id, UpdateUsuarioRequest request)
     {
-        if (id != usuario.Id)
-            return BadRequest("O Id da URL não bate com o Id do corpo da requisição.");
-
-        var existe = await _context.Usuarios.AnyAsync(u => u.Id == id);
-        if (!existe)
+        var usuario = await _context.Usuarios.FindAsync(id);
+        if (usuario == null)
             return NotFound();
 
-        _context.Entry(usuario).State = EntityState.Modified;
+        usuario.Nome = request.Nome;
+        usuario.Email = request.Email;
+        usuario.Telefone = request.Telefone;
+        usuario.NomeEmergencia = request.NomeEmergencia;
+        usuario.TelefoneEmergencia = request.TelefoneEmergencia;
+        usuario.RelacaoEmergencia = request.RelacaoEmergencia;
+        usuario.Perfil = request.Perfil;
+        usuario.Ativo = request.Ativo;
+
         await _context.SaveChangesAsync();
 
         return NoContent();
@@ -88,4 +115,18 @@ public class UsuariosController : ControllerBase
 
         return NoContent();
     }
+
+    private static UsuarioDetalheResponse ToResponse(Usuario u) => new(
+        u.Id,
+        u.Nome,
+        u.Email,
+        u.Telefone,
+        u.NomeEmergencia,
+        u.TelefoneEmergencia,
+        u.RelacaoEmergencia,
+        u.Perfil,
+        u.Ativo,
+        u.DataCriacao,
+        u.UltimoLogin
+    );
 }
