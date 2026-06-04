@@ -19,6 +19,7 @@ public static class AdminSeeder
 
         var email = config["AdminSeed:Email"] ?? "admin@argus.com";
         var nome = config["AdminSeed:Nome"] ?? "Administrador Argus";
+        var telefone = config["AdminSeed:Telefone"] ?? "11900000000";
         var senha = config["AdminSeed:Senha"] ?? "Admin@123";
 
         var jaExiste = await context.Usuarios.AnyAsync(u => u.Email == email);
@@ -28,6 +29,7 @@ public static class AdminSeeder
         {
             Nome = nome,
             Email = email,
+            Telefone = telefone,
             SenhaHash = hasher.Hash(senha),
             Perfil = PerfilUsuario.Admin,
             Ativo = true,

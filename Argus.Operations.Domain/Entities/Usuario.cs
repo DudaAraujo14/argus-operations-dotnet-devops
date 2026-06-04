@@ -7,6 +7,16 @@ public class Usuario
     public long Id { get; set; }
     public string Nome { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    public string Telefone { get; set; } = string.Empty;
+
+    // Contato pra acionar em caso de emergência durante operação em campo.
+    // Os 3 campos andam juntos — ou todos preenchidos, ou nenhum. Opcionais
+    // porque usuários administrativos (Admin/Coordenador de escritório) podem
+    // não precisar registrar.
+    public string? NomeEmergencia { get; set; }
+    public string? TelefoneEmergencia { get; set; }
+    public string? RelacaoEmergencia { get; set; }
+
     public string SenhaHash { get; set; } = string.Empty;
     public PerfilUsuario Perfil { get; set; }
     public bool Ativo { get; set; } = true;

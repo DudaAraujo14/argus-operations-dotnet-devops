@@ -50,6 +50,7 @@ public class AuthControllerTests
         {
             Nome = "Usuario Teste",
             Email = email,
+            Telefone = "11900000000",
             SenhaHash = hasher.Hash(senha),
             Perfil = perfil,
             Ativo = ativo,
@@ -125,13 +126,17 @@ public class AuthControllerTests
     // ===================== REGISTER =====================
 
     [Fact]
-    public async Task Register_ComCodigoConviteCorreto_CriaUsuarioComoBrigadista()
+    public async Task Register_ComContatoEmergenciaCompleto_SalvaTodosOsCampos()
     {
         // Arrange
         var (controller, db, _) = BuildController();
         var request = new RegisterRequest(
             Nome: "Novo Brigadista",
             Email: "novo@argus.com",
+            Telefone: "11987654321",
+            NomeEmergencia: "Joana da Silva",
+            TelefoneEmergencia: "11988888888",
+            RelacaoEmergencia: "Mãe",
             Senha: "Senha@123",
             CodigoConvite: CodigoConviteValido
         );
@@ -143,10 +148,44 @@ public class AuthControllerTests
         var created = Assert.IsType<CreatedAtActionResult>(result.Result);
         var response = Assert.IsType<AuthResponse>(created.Value);
         Assert.Equal(PerfilUsuario.Brigadista, response.Usuario.Perfil);
+        Assert.Equal("11987654321", response.Usuario.Telefone);
+        Assert.Equal("Joana da Silva", response.Usuario.NomeEmergencia);
+        Assert.Equal("11988888888", response.Usuario.TelefoneEmergencia);
+        Assert.Equal("Mãe", response.Usuario.RelacaoEmergencia);
 
         var salvo = await db.Usuarios.FirstAsync(u => u.Email == "novo@argus.com");
-        Assert.Equal(PerfilUsuario.Brigadista, salvo.Perfil);
+        Assert.Equal("Joana da Silva", salvo.NomeEmergencia);
+        Assert.Equal("11988888888", salvo.TelefoneEmergencia);
+        Assert.Equal("Mãe", salvo.RelacaoEmergencia);
         Assert.True(salvo.Ativo);
+    }
+
+    [Fact]
+    public async Task Register_SemContatoEmergencia_AceitaECriaSemOsCampos()
+    {
+        // Arrange
+        var (controller, db, _) = BuildController();
+        var request = new RegisterRequest(
+            Nome: "Brigadista Sem Emergencia",
+            Email: "sememerg@argus.com",
+            Telefone: "11999990000",
+            NomeEmergencia: null,
+            TelefoneEmergencia: null,
+            RelacaoEmergencia: null,
+            Senha: "Senha@123",
+            CodigoConvite: CodigoConviteValido
+        );
+
+        // Act
+        var result = await controller.Register(request);
+
+        // Assert
+        Assert.IsType<CreatedAtActionResult>(result.Result);
+        var salvo = await db.Usuarios.FirstAsync(u => u.Email == "sememerg@argus.com");
+        Assert.Equal("11999990000", salvo.Telefone);
+        Assert.Null(salvo.NomeEmergencia);
+        Assert.Null(salvo.TelefoneEmergencia);
+        Assert.Null(salvo.RelacaoEmergencia);
     }
 
     [Fact]
@@ -157,6 +196,10 @@ public class AuthControllerTests
         var request = new RegisterRequest(
             Nome: "Tentativa Maliciosa",
             Email: "intruso@argus.com",
+            Telefone: "11900000000",
+            NomeEmergencia: null,
+            TelefoneEmergencia: null,
+            RelacaoEmergencia: null,
             Senha: "Senha@123",
             CodigoConvite: "CODIGO-ERRADO"
         );
@@ -179,6 +222,10 @@ public class AuthControllerTests
         var request = new RegisterRequest(
             Nome: "Outro Fulano",
             Email: "duplicado@argus.com",
+            Telefone: "11900000000",
+            NomeEmergencia: null,
+            TelefoneEmergencia: null,
+            RelacaoEmergencia: null,
             Senha: "Senha@456",
             CodigoConvite: CodigoConviteValido
         );

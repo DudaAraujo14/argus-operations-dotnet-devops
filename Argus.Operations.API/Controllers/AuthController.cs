@@ -71,6 +71,10 @@ public class AuthController : ControllerBase
         {
             Nome = request.Nome,
             Email = request.Email,
+            Telefone = request.Telefone,
+            NomeEmergencia = request.NomeEmergencia,
+            TelefoneEmergencia = request.TelefoneEmergencia,
+            RelacaoEmergencia = request.RelacaoEmergencia,
             SenhaHash = _passwordHasher.Hash(request.Senha),
             Perfil = PerfilUsuario.Brigadista,
             Ativo = true,
@@ -104,7 +108,16 @@ public class AuthController : ControllerBase
     {
         var token = _tokenService.GenerateToken(usuario);
         var expiraEm = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpirationMinutes);
-        var usuarioResponse = new UsuarioResponse(usuario.Id, usuario.Nome, usuario.Email, usuario.Perfil);
+        var usuarioResponse = new UsuarioResponse(
+            usuario.Id,
+            usuario.Nome,
+            usuario.Email,
+            usuario.Telefone,
+            usuario.NomeEmergencia,
+            usuario.TelefoneEmergencia,
+            usuario.RelacaoEmergencia,
+            usuario.Perfil
+        );
         return new AuthResponse(token, expiraEm, usuarioResponse);
     }
 }

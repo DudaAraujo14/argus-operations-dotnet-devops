@@ -26,6 +26,7 @@ public class TokenServiceTests
         Id = 42,
         Nome = "Fulano de Tal",
         Email = "fulano@argus.com",
+        Telefone = "11999990000",
         SenhaHash = "hash-irrelevante-pro-token",
         Perfil = perfil,
         Ativo = true

@@ -16,6 +16,7 @@ O projeto faz parte da Global Solution 2026/1 da FIAP, cujo tema é a economia e
 - [Exemplos de uso](#exemplos-de-uso)
 - [Tratamento global de erros](#tratamento-global-de-erros)
 - [Health check](#health-check)
+- [Integração com a API Java](#integração-com-a-api-java)
 - [Testes automatizados](#testes-automatizados)
 - [Estrutura de pastas](#estrutura-de-pastas)
 - [Decisões técnicas relevantes](#decisões-técnicas-relevantes)
@@ -199,7 +200,37 @@ O endpoint `GET /api/auth/me` devolve as claims do token atual e indica em quais
 
 `POST /api/auth/register` exige um campo `codigoConvite`. O valor atual é `ARGUS-2026`, configurável em `appsettings.json > Auth:CodigoConvite`. A presença deste código simula um sistema fechado: na vida real um app operacional de brigada não aceita auto-cadastro público.
 
-Usuários registrados via essa rota recebem sempre o perfil **Brigadista**. Para criar Coordenadores ou Admins é preciso editar o `UsuariosSeed` no `appsettings.json` ou inserir diretamente no banco.
+Campos do payload:
+
+| Campo | Obrigatório | Restrição | Descrição |
+|---|---|---|---|
+| `nome` | sim | máx 150 | Nome completo |
+| `email` | sim | formato e-mail, máx 150, único | Identidade de login |
+| `telefone` | sim | máx 20 | Contato principal |
+| `nomeEmergencia` | não | máx 100 | Nome da pessoa a acionar em emergência |
+| `telefoneEmergencia` | não | máx 20 | Telefone da pessoa a acionar em emergência |
+| `relacaoEmergencia` | não | máx 30 | Relação com o brigadista (ex.: "Mãe", "Cônjuge", "Irmão") |
+| `senha` | sim | mín 6 caracteres | É hasheada com BCrypt (workfactor 11) antes de gravar |
+| `codigoConvite` | sim | igual ao configurado | Verificação de inscrição autorizada |
+
+Os 3 campos do contato de emergência (`nomeEmergencia`, `telefoneEmergencia`, `relacaoEmergencia`) andam juntos por convenção — ou todos preenchidos, ou nenhum. São opcionais porque usuários administrativos (Admin/Coordenador de escritório) podem não precisar registrar essa informação. A validação dessa coesão fica a cargo do cliente (mobile mostra/esconde o trio como um bloco único).
+
+Exemplo de payload com contato de emergência:
+
+```json
+{
+  "nome": "Maria Silva",
+  "email": "maria.silva@argus.com",
+  "telefone": "11987654321",
+  "nomeEmergencia": "Joana Silva",
+  "telefoneEmergencia": "11988888888",
+  "relacaoEmergencia": "Mãe",
+  "senha": "Senha@123",
+  "codigoConvite": "ARGUS-2026"
+}
+```
+
+Usuários registrados via essa rota recebem sempre o perfil **Brigadista**. Para criar Coordenadores ou Admins é preciso editar o `AdminSeed` no `appsettings.json` ou inserir diretamente no banco.
 
 ## Matriz de permissões
 
@@ -224,6 +255,12 @@ A restrição é aplicada em duas camadas. No backend, atributos `[Authorize(Rol
 | POST | `/login` | público | autentica e devolve JWT |
 | POST | `/register` | público (exige `codigoConvite`) | cria novo Brigadista |
 | GET | `/me` | qualquer logado | devolve claims e roles do token atual |
+
+### Integração com Java
+
+| Método | Rota | Auth | Descrição |
+|---|---|---|---|
+| GET | `/api/alertas/{id}` | qualquer logado | proxy pra API Java; devolve os dados do alerta de incêndio detectado por satélite |
 
 ### Recursos do domínio
 
@@ -392,6 +429,48 @@ Resposta típica:
 ```
 
 Quando o Oracle está fora, `status` vira `Unhealthy`, o HTTP é 503 e o campo `error` traz o motivo retornado pelo provider.
+
+## Integração com a API Java
+
+O Argus opera com dois backends em domínios distintos: o **Java**, responsável pela detecção de focos de incêndio via satélite (geração de alertas), e o **.NET** (este projeto), responsável pelas operações de resposta em campo. A integração entre eles acontece em dois níveis.
+
+**Nível 1 — banco compartilhado.** Ambos usam o mesmo Oracle do FIAP, com schemas independentes. A entidade `Ocorrencia` tem um campo `AlertaId` (nullable) que aponta pra tabela de alertas do Java. A FK formal é criada via `ALTER TABLE` no script SQL consolidado da entrega de Database.
+
+**Nível 2 — chamada HTTP via client tipado.** Um `HttpClient` tipado (`IAlertaJavaClient` na Application, `AlertaJavaClient` na Infrastructure) faz requisições à API Java pra buscar os detalhes de um alerta específico. O endpoint `GET /api/alertas/{id}` deste projeto serve como proxy pra API Java, o que permite ao cliente mobile consultar alertas pelo mesmo backend que já está autenticando.
+
+**Configuração:** a URL base da API Java é configurável em `appsettings.json`:
+
+```json
+"JavaApi": {
+  "BaseUrl": "http://localhost:8080"
+}
+```
+
+Pode ser sobrescrita via user-secrets (`JavaApi:BaseUrl`) ou variável de ambiente (`JavaApi__BaseUrl`). O timeout default é 10 segundos.
+
+**Tratamento de erros da chamada externa.** Tanto a falha de conexão (Java fora do ar) quanto o timeout são interceptados pelo `GlobalExceptionHandler`:
+
+| Cenário | Status HTTP | Título |
+|---|---|---|
+| Java retorna 404 | 404 Not Found | (resposta normal do controller) |
+| Java retorna sucesso | 200 OK | (devolve `AlertaDto` ao cliente) |
+| `HttpRequestException` (Java fora) | 503 Service Unavailable | API externa indisponível |
+| `TaskCanceledException` (timeout >10s) | 504 Gateway Timeout | Timeout em API externa |
+
+**Contrato esperado do retorno da API Java** (atualmente uma suposição — ajustar quando o time do Java confirmar):
+
+```csharp
+record AlertaDto(
+    long Id,
+    double Latitude,
+    double Longitude,
+    string? Severidade,
+    DateTime DataDeteccao,
+    string? Status
+);
+```
+
+Se os nomes de campo do retorno real do Java forem diferentes, basta ajustar o `AlertaDto` em `Argus.Operations.Application/Integration/`. O resto do código (controller, client, registro do HttpClient) permanece igual.
 
 ## Testes automatizados
 

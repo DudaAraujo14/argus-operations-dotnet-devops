@@ -124,6 +124,10 @@ public class ArgusDbContext : DbContext
             entity.Property(u => u.Id).HasColumnName("ID_USUARIO").ValueGeneratedOnAdd();
             entity.Property(u => u.Nome).HasColumnName("NOME").IsRequired().HasMaxLength(150);
             entity.Property(u => u.Email).HasColumnName("EMAIL").IsRequired().HasMaxLength(150);
+            entity.Property(u => u.Telefone).HasColumnName("TELEFONE").IsRequired().HasMaxLength(20);
+            entity.Property(u => u.NomeEmergencia).HasColumnName("NOME_EMERGENCIA").HasMaxLength(100);
+            entity.Property(u => u.TelefoneEmergencia).HasColumnName("TELEFONE_EMERGENCIA").HasMaxLength(20);
+            entity.Property(u => u.RelacaoEmergencia).HasColumnName("RELACAO_EMERGENCIA").HasMaxLength(30);
             entity.Property(u => u.SenhaHash).HasColumnName("SENHA_HASH").IsRequired().HasMaxLength(255);
             entity.Property(u => u.Perfil).HasColumnName("PERFIL").IsRequired().HasConversion<int>();
             entity.Property(u => u.Ativo).HasColumnName("ATIVO").IsRequired();
