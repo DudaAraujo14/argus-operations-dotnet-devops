@@ -1,13 +1,22 @@
 namespace Argus.Operations.Application.Integration;
 
-// Representa um alerta de incêndio originado da API Java (detecção via satélite).
-// Os nomes dos campos são suposições do contrato — ajustar quando o time do Java
-// confirmar o formato real.
+// Espelha o AlertaResponseDTO da API Java (argus-intelligence-api).
+// Coordenadas (latitude/longitude) não estão aqui — vivem na entidade FocoCalor
+// referenciada por FocoCalorId. Pra obter posição geográfica de um alerta é
+// preciso consultar a API Java em /api/focos-calor/{focoCalorId} (não exposto
+// como proxy ainda).
+//
+// Nivel:  BAIXO | MEDIO | ALTO | CRITICO
+// Status: ABERTO | EM_ANALISE | ENCAMINHADO | ENCERRADO
 public record AlertaDto(
     long Id,
-    double Latitude,
-    double Longitude,
-    string? Severidade,
-    DateTime DataDeteccao,
-    string? Status
+    string Titulo,
+    string? Descricao,
+    string Nivel,
+    string Status,
+    double? ScoreRisco,
+    string? RecomendacaoOperacional,
+    DateTime DataGeracao,
+    DateTime? DataAtualizacao,
+    long FocoCalorId
 );
