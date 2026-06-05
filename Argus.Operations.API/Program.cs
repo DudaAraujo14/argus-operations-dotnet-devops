@@ -27,9 +27,16 @@ builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ArgusDbContext>(name: "oracle-db");
 
-// ===== Cliente HTTP tipado pra API Java (alertas via satélite) =====
+// ===== Clientes HTTP tipados pra API Java (alertas e focos via satélite) =====
 // URL base configurável em appsettings → JavaApi:BaseUrl (override por user-secrets ou env).
 builder.Services.AddHttpClient<IAlertaJavaClient, AlertaJavaClient>(client =>
+{
+    var baseUrl = builder.Configuration["JavaApi:BaseUrl"] ?? "http://localhost:8080";
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
+builder.Services.AddHttpClient<IFocoCalorJavaClient, FocoCalorJavaClient>(client =>
 {
     var baseUrl = builder.Configuration["JavaApi:BaseUrl"] ?? "http://localhost:8080";
     client.BaseAddress = new Uri(baseUrl);
