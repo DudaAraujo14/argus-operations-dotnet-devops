@@ -5,12 +5,37 @@ using Argus.Operations.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Oracle.ManagedDataAccess.Client;
 
 namespace Argus.Operations.Infrastructure.Auth;
 
 public static class AdminSeeder
 {
+    // FIAP Oracle limita 10 sessões/usuário e às vezes leva minutos pra reapear
+    // sessões mortas. Em vez de crashar a API no startup, tentamos algumas vezes
+    // com espera entre as tentativas — assim a API sobe sozinha quando liberar.
+    private const int MaxAttempts = 3;
+    private const int DelaySeconds = 10;
+    private const int OraSessionsPerUserExceeded = 2391;
+
     public static async Task SeedAsync(IServiceProvider services)
+    {
+        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
+        {
+            try
+            {
+                await SeedOnceAsync(services);
+                return;
+            }
+            catch (OracleException ex) when (ex.Number == OraSessionsPerUserExceeded && attempt < MaxAttempts)
+            {
+                Console.WriteLine($"[AdminSeeder] ORA-02391 (sessões esgotadas no FIAP). Tentativa {attempt}/{MaxAttempts} — aguardando {DelaySeconds}s antes de tentar de novo...");
+                await Task.Delay(TimeSpan.FromSeconds(DelaySeconds));
+            }
+        }
+    }
+
+    private static async Task SeedOnceAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ArgusDbContext>();

@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Oracle.ManagedDataAccess.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -122,6 +123,11 @@ var app = builder.Build();
 
 // ===== Tratamento global de exceções (precisa vir antes de tudo no pipeline) =====
 app.UseExceptionHandler();
+
+// Limpa qualquer pool herdado antes do primeiro acesso ao Oracle.
+// Sem isso, em alguns cenários de restart o driver tenta reusar conexões
+// "fantasma" e estoura ORA-02391 antes do retry do seeder rodar.
+OracleConnection.ClearAllPools();
 
 // ===== Seed do admin (executa uma vez no startup) =====
 await AdminSeeder.SeedAsync(app.Services);
