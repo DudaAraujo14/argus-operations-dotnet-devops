@@ -126,6 +126,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
+// ===== CORS =====
+// Mobile (React Native em emulador/device) e qualquer ferramenta de teste
+// precisam consumir essa API de origens variadas. Em dev/demo liberamos tudo;
+// em prod a banca espera ver a política travada por origem específica.
+const string CorsPolicyArgus = "ArgusCors";
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicyArgus, policy =>
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+});
+
 var app = builder.Build();
 
 // ===== Tratamento global de exceções (precisa vir antes de tudo no pipeline) =====
@@ -152,6 +165,10 @@ if (app.Environment.IsDevelopment())
 
 if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
+
+// CORS precisa vir antes de UseAuthentication/UseAuthorization pra que o
+// preflight OPTIONS não bata em 401 antes de a policy ser avaliada.
+app.UseCors(CorsPolicyArgus);
 
 app.UseAuthentication();
 app.UseAuthorization();
