@@ -104,6 +104,31 @@ public class AuthController : ControllerBase
         });
     }
 
+    // PUT /api/auth/me → o usuário logado edita o PRÓPRIO perfil. Aberto a
+    // qualquer perfil autenticado, mas só altera campos seguros — nunca Perfil,
+    // Ativo, SenhaHash ou Email. O id vem do claim NameIdentifier do JWT.
+    [HttpPut("me")]
+    [Authorize]
+    public async Task<IActionResult> AtualizarMeuPerfil(AtualizarPerfilRequest request)
+    {
+        var idClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!long.TryParse(idClaim, out var userId))
+            return Unauthorized();
+
+        var usuario = await _context.Usuarios.FindAsync(userId);
+        if (usuario == null)
+            return NotFound();
+
+        usuario.Nome = request.Nome;
+        usuario.Telefone = request.Telefone;
+        usuario.NomeEmergencia = request.NomeEmergencia;
+        usuario.TelefoneEmergencia = request.TelefoneEmergencia;
+        usuario.RelacaoEmergencia = request.RelacaoEmergencia;
+
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
     private AuthResponse BuildResponse(Usuario usuario)
     {
         var token = _tokenService.GenerateToken(usuario);

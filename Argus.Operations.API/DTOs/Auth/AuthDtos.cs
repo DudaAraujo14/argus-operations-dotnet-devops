@@ -37,3 +37,13 @@ public record UsuarioResponse(
     string? RelacaoEmergencia,
     PerfilUsuario Perfil
 );
+
+// Payload do PUT /api/auth/me — usuário logado editando o próprio perfil.
+// Cobre só campos "seguros" (não muda Perfil, Ativo, Email, SenhaHash).
+public record AtualizarPerfilRequest(
+    [Required, MaxLength(150)] string Nome,
+    [Required, MaxLength(20)] string Telefone,
+    [MaxLength(100)] string? NomeEmergencia,
+    [MaxLength(20)] string? TelefoneEmergencia,
+    [MaxLength(30)] string? RelacaoEmergencia
+);
