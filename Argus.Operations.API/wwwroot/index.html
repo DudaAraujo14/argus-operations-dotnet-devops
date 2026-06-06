@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1">
+
+    <meta name="description"
+          content="ARGUS Operations API - backend operacional de combate a incêndios florestais com .NET 9, ASP.NET Core, Oracle, EF Core, JWT e integração com a API Intelligence Java.">
+
+    <title>ARGUS Operations API</title>
+
+    <link rel="icon"
+          type="image/x-icon"
+          href="/favicon.ico">
+
+    <link rel="preload"
+          as="image"
+          href="/images/argus_symbol_only_transparent.png">
+
+    <link rel="stylesheet"
+          href="/css/styles.css">
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+</head>
+
+<body class="argus-body">
+
+<header class="dashboard-header">
+
+    <div class="dashboard-header-content">
+
+        <div class="dashboard-user-block">
+
+            <span class="welcome-text">
+                ARGUS Operations API
+            </span>
+
+            <h1>
+                Central operacional de combate a incêndios florestais
+            </h1>
+
+            <p class="dashboard-subtitle">
+                API .NET responsável pela gestão de brigadas, brigadistas,
+                ocorrências em campo, recursos materiais e registros de
+                atendimento. Autenticação JWT, autorização granular por
+                perfil e proxy de leitura para a API Intelligence Java.
+            </p>
+
+        </div>
+
+    </div>
+
+</header>
+
+<main class="dashboard-container">
+
+    <section class="dashboard-section">
+
+        <span class="section-label">
+            Visão executiva
+        </span>
+
+        <div class="hero-panel">
+
+            <div class="hero-brand">
+
+                <div class="hero-logo-wrapper">
+
+                    <img
+                            class="hero-logo"
+                            src="/images/argus_symbol_only_transparent.png"
+                            alt="Logo ARGUS"
+                            loading="eager">
+
+                </div>
+
+            </div>
+
+            <div class="hero-text">
+
+                <h2>
+                    ARGUS Operations API
+                </h2>
+
+                <p>
+                    Camada operacional do ecossistema ARGUS, responsável
+                    por receber os alertas gerados pela inteligência
+                    ambiental e coordenar a resposta em campo:
+                    despacho de brigadas, abertura de ocorrências,
+                    registros de atendimento e gestão de recursos.
+                </p>
+
+                <p>
+                    Construída sobre .NET 9 e ASP.NET Core com
+                    Clean Architecture, persiste no Oracle via
+                    EF Core Code First, autentica com JWT/BCrypt,
+                    publica logs estruturados via Serilog e consome
+                    a API Java por HTTP tipado para alertas e focos de calor.
+                </p>
+
+                <div class="hero-tags">
+
+                    <span class="hero-tag">.NET 9</span>
+                    <span class="hero-tag">ASP.NET Core</span>
+                    <span class="hero-tag">EF Core</span>
+                    <span class="hero-tag">Oracle</span>
+                    <span class="hero-tag">JWT</span>
+                    <span class="hero-tag">BCrypt</span>
+                    <span class="hero-tag">Serilog</span>
+                    <span class="hero-tag">Swagger</span>
+                    <span class="hero-tag">xUnit</span>
+                    <span class="hero-tag">Azure</span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    <section class="dashboard-section">
+
+        <span class="section-label">
+            Hub operacional da arquitetura
+        </span>
+
+        <div class="shortcut-grid">
+
+            <a href="/health"
+               class="shortcut-card"
+               target="_blank"
+               rel="noopener noreferrer">
+
+                <div class="shortcut-icon">
+                    <i class="fa-solid fa-heart-pulse"></i>
+                </div>
+
+                <div class="shortcut-content">
+                    <h2>Health Check</h2>
+                    <p>Verifica a disponibilidade da aplicação e da conexão com o Oracle por meio do AddDbContextCheck do EF Core.</p>
+                </div>
+
+            </a>
+
+            <a href="/swagger"
+               class="shortcut-card"
+               target="_blank"
+               rel="noopener noreferrer">
+
+                <div class="shortcut-icon">
+                    <i class="fa-solid fa-book"></i>
+                </div>
+
+                <div class="shortcut-content">
+                    <h2>Swagger UI</h2>
+                    <p>Interface interativa para autenticar com JWT, testar endpoints e validar contratos REST da API.</p>
+                </div>
+
+            </a>
+
+            <a href="https://argus-intelligence-api-abe6g6facyh4fgfm.eastus-01.azurewebsites.net"
+               class="shortcut-card"
+               target="_blank"
+               rel="noopener noreferrer">
+
+                <div class="shortcut-icon">
+                    <i class="fa-solid fa-satellite-dish"></i>
+                </div>
+
+                <div class="shortcut-content">
+                    <h2>Intelligence API (Java)</h2>
+                    <p>API parceira responsável pela ingestão NASA FIRMS, geração de alertas e cálculo de risco.</p>
+                </div>
+
+            </a>
+
+            <a href="https://github.com/annabonfim/argus-operations-dotnet"
+               class="shortcut-card"
+               target="_blank"
+               rel="noopener noreferrer">
+
+                <div class="shortcut-icon">
+                    <i class="fa-brands fa-github"></i>
+                </div>
+
+                <div class="shortcut-content">
+                    <h2>Repositório no GitHub</h2>
+                    <p>Código-fonte, migrations versionadas, README com decisões de arquitetura e roteiro de deploy.</p>
+                </div>
+
+            </a>
+
+            <a href="/api/auth/me"
+               class="shortcut-card"
+               target="_blank"
+               rel="noopener noreferrer">
+
+                <div class="shortcut-icon">
+                    <i class="fa-solid fa-id-badge"></i>
+                </div>
+
+                <div class="shortcut-content">
+                    <h2>Identidade do Token</h2>
+                    <p>Inspeciona o usuário autenticado e suas roles a partir do JWT, útil para diagnóstico de autorização.</p>
+                </div>
+
+            </a>
+
+            <a href="#"
+               class="shortcut-card">
+
+                <div class="shortcut-icon">
+                    <i class="fa-solid fa-mobile-screen-button"></i>
+                </div>
+
+                <div class="shortcut-content">
+                    <h2>Mobile ARGUS</h2>
+                    <p>Aplicativo React Native consumido pelos brigadistas em campo para alertas, ocorrências e atendimento.</p>
+                </div>
+
+            </a>
+
+        </div>
+
+    </section>
+
+    <section class="dashboard-section">
+
+        <span class="section-label">
+            Documentação técnica
+        </span>
+
+        <div class="admin-grid">
+
+            <a href="/swagger/index.html"
+               class="admin-card"
+               target="_blank"
+               rel="noopener noreferrer">
+
+                <div class="admin-card-icon">
+                    <i class="fa-solid fa-book"></i>
+                </div>
+
+                <div class="admin-card-content">
+                    <h3>Swagger UI</h3>
+                    <p>Documentação interativa dos endpoints, com botão Authorize para enviar o Bearer JWT em requests.</p>
+                </div>
+
+            </a>
+
+            <a href="/swagger/v1/swagger.json"
+               class="admin-card"
+               target="_blank"
+               rel="noopener noreferrer">
+
+                <div class="admin-card-icon">
+                    <i class="fa-solid fa-code"></i>
+                </div>
+
+                <div class="admin-card-content">
+                    <h3>OpenAPI JSON</h3>
+                    <p>Contrato técnico padronizado dos recursos REST expostos pela ARGUS Operations API.</p>
+                </div>
+
+            </a>
+
+            <a href="/health"
+               class="admin-card"
+               target="_blank"
+               rel="noopener noreferrer">
+
+                <div class="admin-card-icon">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+
+                <div class="admin-card-content">
+                    <h3>Health Check</h3>
+                    <p>Resposta JSON com status agregado da aplicação, duração total e detalhe do check do Oracle.</p>
+                </div>
+
+            </a>
+
+        </div>
+
+    </section>
+
+    <section class="dashboard-section">
+
+        <span class="section-label">
+            Domínios de negócio ARGUS
+        </span>
+
+        <div class="admin-grid">
+
+            <a href="/api/brigadas"
+               class="admin-card"
+               target="_blank"
+               rel="noopener noreferrer">
+
+                <div class="admin-card-icon">
+                    <i class="fa-solid fa-people-group"></i>
+                </div>
+
+                <div class="admin-card-content">
+                    <h3>Brigadas</h3>
+                    <p>Equipes de combate, com nome, base operacional e contato. Âncora operacional dos brigadistas e recursos.</p>
+                </div>
+
+            </a>
+
+            <a href="/api/brigadistas"
+               class="admin-card"
+               target="_blank"
+               rel="noopener noreferrer">
+
+                <div class="admin-card-icon">
+                    <i class="fa-solid fa-helmet-safety"></i>
+                </div>
+
+                <div class="admin-card-content">
+                    <h3>Brigadistas</h3>
+                    <p>Membros operacionais vinculados a uma brigada, com matrícula, função e dados de contato.</p>
+                </div>
+
+            </a>
+
+            <a href="/api/ocorrencias"
+               class="admin-card"
+               target="_blank"
+               rel="noopener noreferrer">
+
+                <div class="admin-card-icon">
+                    <i class="fa-solid fa-fire"></i>
+                </div>
+
+                <div class="admin-card-content">
+                    <h3>Ocorrências</h3>
+                    <p>Registros de combate em campo, opcionalmente vinculados a um alerta da API Java pelo campo AlertaId.</p>
+                </div>
+
+            </a>
+
+            <a href="/api/recursos"
+               class="admin-card"
+               target="_blank"
+               rel="noopener noreferrer">
+
+                <div class="admin-card-icon">
+                    <i class="fa-solid fa-truck-medical"></i>
+                </div>
+
+                <div class="admin-card-content">
+                    <h3>Recursos</h3>
+                    <p>Equipamentos operacionais (caminhão-pipa, EPI, ferramenta) alocados por brigada.</p>
+                </div>
+
+            </a>
+
+            <a href="/api/alertas"
+               class="admin-card"
+               target="_blank"
+               rel="noopener noreferrer">
+
+                <div class="admin-card-icon">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+
+                <div class="admin-card-content">
+                    <h3>Alertas (proxy Java)</h3>
+                    <p>Proxy de leitura para os alertas gerados pela API Intelligence. Permite promover um alerta a ocorrência.</p>
+                </div>
+
+            </a>
+
+            <a href="/api/focos"
+               class="admin-card"
+               target="_blank"
+               rel="noopener noreferrer">
+
+                <div class="admin-card-icon">
+                    <i class="fa-solid fa-satellite"></i>
+                </div>
+
+                <div class="admin-card-content">
+                    <h3>Focos de Calor (proxy)</h3>
+                    <p>Proxy de leitura para os focos brutos do satélite (NASA FIRMS) servidos pela API Java.</p>
+                </div>
+
+            </a>
+
+        </div>
+
+    </section>
+
+</main>
+
+</body>
+
+</html>

@@ -171,6 +171,13 @@ OracleConnection.ClearAllPools();
 // ===== Seed do admin (executa uma vez no startup) =====
 await AdminSeeder.SeedAsync(app.Services);
 
+// ===== Landing page estática =====
+// Serve wwwroot/index.html em "/" e libera /css/*, /images/* sem auth.
+// UseDefaultFiles precisa vir ANTES de UseStaticFiles pra rewriting de "/"
+// pra "/index.html" funcionar.
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 // ===== Pipeline HTTP =====
 if (app.Environment.IsDevelopment())
 {
