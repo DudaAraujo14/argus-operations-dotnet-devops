@@ -6,6 +6,7 @@ using Argus.Operations.Application.Integration;
 using Argus.Operations.Infrastructure.Auth;
 using Argus.Operations.Infrastructure.Integration;
 using Argus.Operations.Infrastructure.Data;
+using Argus.Operations.Infrastructure.Messaging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
@@ -138,6 +139,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 builder.Services.AddAuthorization();
+
+// ===== Consumer RabbitMQ (CloudAMQP) =====
+// BackgroundService que escuta a fila 'argus.alertas' e cria ocorrência
+// automática pra cada alerta ALTO/CRITICO publicado pelo Java. Connection
+// string vem de RabbitMq:ConnectionString (user-secrets em dev, Application
+// Settings em prod) — nunca commitada.
+builder.Services.AddHostedService<AlertaConsumerService>();
 
 // ===== CORS =====
 // Mobile (React Native em emulador/device) e qualquer ferramenta de teste
