@@ -179,23 +179,26 @@ OracleConnection.ClearAllPools();
 // ===== Seed do admin (executa uma vez no startup) =====
 await AdminSeeder.SeedAsync(app.Services);
 
-// ===== Landing page estática =====
-// Serve wwwroot/index.html em "/" e libera /css/*, /images/* sem auth.
-// UseDefaultFiles precisa vir ANTES de UseStaticFiles pra rewriting de "/"
-// pra "/index.html" funcionar.
-app.UseDefaultFiles();
-app.UseStaticFiles();
-
 // ===== Pipeline HTTP =====
 // Swagger habilitado em TODAS as envs (inclusive Production) intencionalmente
 // pra que a banca da GS consiga validar contratos REST e testar endpoints
 // diretamente na URL pública. Em produto real isso ficaria atrás de auth.
+// Precisa vir ANTES dos static files (UseDefaultFiles) pra evitar que o
+// rewriter de defaults intercepte /swagger/ e retorne 404 antes da
+// SwaggerUI middleware tratar a request.
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
     options.SwaggerEndpoint("/swagger/v1/swagger.json", "Argus API v1");
     options.RoutePrefix = "swagger";
 });
+
+// ===== Landing page estática =====
+// Serve wwwroot/index.html em "/" e libera /css/*, /images/* sem auth.
+// UseDefaultFiles precisa vir ANTES de UseStaticFiles pra rewriting de "/"
+// pra "/index.html" funcionar.
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
