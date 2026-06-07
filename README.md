@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="Argus.Operations.API/wwwroot/images/argus_symbol_only_transparent.png" alt="Argus" width="180">
+</p>
+
 # Argus Operations API
 
 <p align="center">
@@ -15,7 +19,7 @@
 
 API operacional do sistema **Argus**, voltada a operações de combate a incêndios florestais. Concentra a gestão de brigadas, brigadistas, recursos materiais, ocorrências em campo e registros de atendimento, expondo um conjunto de endpoints REST protegidos por autenticação JWT.
 
-O projeto faz parte da Global Solution 2026/1 da FIAP, cujo tema é a economia espacial e a aplicação de dados de satélite a problemas reais na Terra. O Argus se posiciona no eixo de **monitoramento ambiental e resposta a desastres**: a API operacional aqui presente é o backend que receberia alertas de queimadas detectadas por satélite (vindos do domínio Java, externo a esta API) e coordenaria a resposta das brigadas em terra.
+O projeto faz parte da Global Solution 2026/1 da FIAP, cujo tema é **economia espacial**. Entre as direções sugeridas pela banca, escolhemos aplicar dados de satélite a um problema real em terra: o combate a incêndios florestais. O Argus se posiciona no eixo de **monitoramento ambiental e resposta a desastres** — a API operacional aqui presente é o backend que recebe os alertas de queimadas detectados por satélite (vindos do domínio Java, externo a esta API) e coordena a resposta das brigadas em campo.
 
 ## Sumário
 
@@ -30,6 +34,8 @@ O projeto faz parte da Global Solution 2026/1 da FIAP, cujo tema é a economia e
 - [Tratamento global de erros](#tratamento-global-de-erros)
 - [Health check](#health-check)
 - [Integração com a API Java](#integração-com-a-api-java)
+- [Mensageria assíncrona (RabbitMQ)](#mensageria-assíncrona-rabbitmq)
+- [Landing page institucional](#landing-page-institucional)
 - [Testes automatizados](#testes-automatizados)
 - [Estrutura de pastas](#estrutura-de-pastas)
 - [Decisões técnicas relevantes](#decisões-técnicas-relevantes)
@@ -47,6 +53,8 @@ O projeto faz parte da Global Solution 2026/1 da FIAP, cujo tema é a economia e
 | Banco | Oracle 19c (servidor FIAP) |
 | Autenticação | JWT Bearer + BCrypt para hash de senhas |
 | Logging | Serilog (estruturado, JSON-friendly) + `UseSerilogRequestLogging` |
+| Mensageria | RabbitMQ.Client 7.x consumindo broker AMQP gerenciado (CloudAMQP/LavinMQ) |
+| Front estático | `wwwroot/index.html` servido em `/` com identidade visual compartilhada Java + .NET |
 | Testes | xUnit 2.9 + EF Core InMemory |
 
 ## Arquitetura
@@ -272,12 +280,16 @@ A restrição é aplicada em duas camadas. No backend, atributos `[Authorize(Rol
 | POST | `/login` | público | autentica e devolve JWT |
 | POST | `/register` | público (exige `codigoConvite`) | cria novo Brigadista |
 | GET | `/me` | qualquer logado | devolve claims e roles do token atual |
+| PUT | `/me` | qualquer logado | usuário edita o próprio perfil (nome, telefone, contato de emergência) — nunca toca em `Perfil`, `Ativo`, `Email`, `SenhaHash` |
 
 ### Integração com Java
 
 | Método | Rota | Auth | Descrição |
 |---|---|---|---|
-| GET | `/api/alertas/{id}` | qualquer logado | proxy pra API Java; devolve os dados do alerta de incêndio detectado por satélite |
+| GET | `/api/alertas` | qualquer logado | proxy pra API Java; lista alertas críticos filtrados pelo trigger PL/SQL (vindos da NASA FIRMS) |
+| GET | `/api/alertas/{id}` | qualquer logado | proxy pra API Java; devolve um alerta específico |
+| POST | `/api/alertas/{id}/criar-ocorrencia` | Admin/Coordenador | "promove" o alerta a uma ocorrência operacional — busca o alerta no Java, monta a descrição a partir do título + descrição + recomendação operacional, e cria a ocorrência atribuída à brigada/brigadista informados |
+| GET | `/api/focos` | qualquer logado | proxy pra API Java; lista focos de calor brutos (NASA FIRMS) usados pelo mapa do mobile |
 
 ### Recursos do domínio
 
@@ -474,20 +486,93 @@ Pode ser sobrescrita via user-secrets (`JavaApi:BaseUrl`) ou variável de ambien
 | `HttpRequestException` (Java fora) | 503 Service Unavailable | API externa indisponível |
 | `TaskCanceledException` (timeout >10s) | 504 Gateway Timeout | Timeout em API externa |
 
-**Contrato esperado do retorno da API Java** (atualmente uma suposição — ajustar quando o time do Java confirmar):
+**Contrato real do retorno da API Java**, espelhado do `AlertaResponseDTO`:
 
 ```csharp
 record AlertaDto(
     long Id,
-    double Latitude,
-    double Longitude,
-    string? Severidade,
-    DateTime DataDeteccao,
-    string? Status
+    string Titulo,
+    string? Descricao,
+    string Nivel,                 // BAIXO | MEDIO | ALTO | CRITICO
+    string Status,                // ABERTO | EM_ANALISE | ENCAMINHADO | ENCERRADO
+    double? ScoreRisco,
+    string? RecomendacaoOperacional,
+    DateTime DataGeracao,
+    DateTime? DataAtualizacao,
+    long FocoCalorId              // FK pro foco de calor que originou o alerta
 );
 ```
 
-Se os nomes de campo do retorno real do Java forem diferentes, basta ajustar o `AlertaDto` em `Argus.Operations.Application/Integration/`. O resto do código (controller, client, registro do HttpClient) permanece igual.
+Coordenadas (latitude/longitude) não estão no alerta — vivem na entidade `FocoCalor` referenciada por `FocoCalorId` e podem ser obtidas via `GET /api/focos`. O `FocoCalorDto` (em `Argus.Operations.Application/Integration/`) traz lat/long, FRP (Fire Radiative Power), temperatura estimada, satélite e sensor.
+
+## Mensageria assíncrona (RabbitMQ)
+
+Além do proxy HTTP, a API Java também publica eventos de alerta em uma fila AMQP gerenciada (CloudAMQP/LavinMQ). Quando um alerta de nível **ALTO** ou **CRITICO** é gerado, o publisher da API Java envia uma mensagem enriquecida (alerta + foco + região) para a fila `argus.alertas`. Esta API .NET consome a fila em background e converte cada mensagem em uma **ocorrência operacional**, sem qualquer ação manual do coordenador.
+
+O fluxo end-to-end:
+
+```mermaid
+flowchart LR
+    SAT["Satélite NASA FIRMS"] --> JV["API Java<br/>(Spring Boot)"]
+    JV -->|trigger PL/SQL| ORACLE[("Oracle")]
+    JV -->|"publica ALTO/CRITICO"| Q[("fila argus.alertas<br/>CloudAMQP")]
+    Q -->|consome| NET["API .NET<br/>AlertaConsumerService"]
+    NET -->|"cria Ocorrência (status=Aberta)"| ORACLE
+    NET -->|notifica| MOB["App Mobile<br/>(brigadista)"]
+```
+
+**`AlertaConsumerService`** é um `BackgroundService` registrado no `Program.cs` via `AddHostedService`. Roda em paralelo ao pipeline HTTP normal — o consumer conecta uma vez no startup, fica escutando a fila pelo tempo de vida da aplicação, e processa cada mensagem em scope próprio (cria um `IServiceScope` por mensagem para resolver o `ArgusDbContext`).
+
+**Garantias implementadas:**
+
+| Cenário | Comportamento |
+|---|---|
+| Alerta novo chega | Cria ocorrência com brigada/brigadista default (primeiros ativos do banco) + lat/long do foco |
+| Mesmo alerta entregue 2x (replay) | **Ack sem criar duplicata** — checa `db.Ocorrencias.AnyAsync(o => o.AlertaId == X)` antes de inserir |
+| Banco caiu durante processamento | Nack com **requeue=true** — mensagem volta pra fila pra retry automático |
+| Mensagem com JSON malformado | Nack **requeue=false** — vai pro DLQ, não fica em loop infinito |
+| Conexão AMQP cai | Auto-recovery do driver (10s) + loop externo reconnect (mais 10s) |
+| API restartando | `StopAsync` fecha channel + connection limpos |
+
+**Idempotência via `AlertaId`.** O Java garante que cada alerta tem um id único (auto-increment do Oracle). Quando o consumer recebe uma mensagem, primeiro verifica se já existe ocorrência com aquele `AlertaId`; se sim, apenas ack a mensagem sem criar nova. Isso protege contra:
+
+- Mensagem entregue mais de uma vez por race no broker (AMQP é at-least-once por design, não exactly-once)
+- Re-publish da Alane durante testes
+- Restart do consumer no meio do processamento
+
+**Por que `BasicQos(prefetchCount: 1)`.** Configurar prefetch baixo é deliberado — processa uma mensagem por vez. Em troca de menos throughput, ganha previsibilidade na ordem de criação das ocorrências e simplifica a defesa de idempotência (não tem mensagem "em voo" enquanto outra é processada).
+
+**Compatibilidade Java ↔ .NET no JSON.** O Spring Boot serializa `LocalDateTime` por padrão como array de inteiros `[year, month, day, hour, minute, second, nano]` quando `JavaTimeModule` não está configurado. Em vez de depender da config do lado Java, o consumer tem um `JavaLocalDateTimeConverter` (`JsonConverter<DateTime>`) que aceita tanto array Java quanto string ISO 8601 — torna a integração robusta mesmo se a Alane mudar a config do Jackson dela depois.
+
+**Configuração:**
+
+```json
+"RabbitMq": {
+  "QueueName": "argus.alertas"
+}
+```
+
+A `ConnectionString` (com credencial do broker) **nunca** é commitada — fica em user-secrets em dev e em Azure Application Settings em prod:
+
+```bash
+dotnet user-secrets set "RabbitMq:ConnectionString" "amqps://..."
+```
+
+**Por que mensageria além do proxy HTTP.** O proxy HTTP (`GET /api/alertas`) atende o caso "mobile abre a tela de alertas e quer ver a lista atual". A mensageria atende o caso "satélite acabou de detectar um foco crítico, brigada precisa saber AGORA". Os dois canais coexistem porque resolvem problemas diferentes — leitura sob demanda vs. push assíncrono.
+
+## Landing page institucional
+
+A API serve uma página HTML estática em `/` (`wwwroot/index.html`) com a mesma identidade visual da API Java (cores, logo, tipografia, layout de cards). Isso reforça o pitch de "**ecossistema único de dois microserviços**" em vez de "duas APIs independentes que conversam por acidente".
+
+A página apresenta:
+
+- Hero com logo do Argus e descrição da responsabilidade desta API (operações de campo)
+- Tags da stack (.NET 9, ASP.NET Core, EF Core, Oracle, JWT, BCrypt, Serilog, xUnit, Azure)
+- Hub de atalhos: Health Check, Swagger, GitHub, link pra API Java, identidade do token (`/api/auth/me`)
+- Cards de documentação técnica: Swagger UI, OpenAPI JSON, Health Check
+- Cards dos domínios de negócio: Brigadas, Brigadistas, Ocorrências, Recursos, Alertas (proxy), Focos (proxy)
+
+A camada de arquivos estáticos é habilitada por `app.UseDefaultFiles()` + `app.UseStaticFiles()` no `Program.cs`, posicionada depois do exception handler e antes do middleware de autenticação — assim a landing page é pública (qualquer um vê), mas as APIs sob `/api/...` continuam protegidas por JWT.
 
 ## Testes automatizados
 
@@ -556,6 +641,10 @@ Algumas escolhas de projeto que merecem nota:
 
 **Código de convite no registro**. O endpoint `/api/auth/register` exige um código fixo configurado em `appsettings.json` (`Auth:CodigoConvite`). É uma simplificação do que seria um fluxo de convite real (token único por convidado, expiração, etc.), apropriada ao escopo acadêmico. Em produção, o coordenador da brigada geraria um código de convite específico para cada novo membro, com validade limitada e uso único.
 
+**Serilog substituindo o `ILogger` padrão, posicionado ANTES do `UseExceptionHandler`**. O `ILogger` default do ASP.NET Core emite logs em texto simples e quebra cada request em 3-4 linhas separadas (start, action selecting, executing, completed). O Serilog com `UseSerilogRequestLogging()` consolida em uma linha estruturada por request (método, path, status, duração em ms) e permite que filtros por `SourceContext` sejam definidos sem recompilar — útil pra silenciar verbosidade do EF Core sem perder logs da aplicação. O detalhe sutil é o **posicionamento no pipeline**: `UseSerilogRequestLogging()` precisa vir antes de `UseExceptionHandler()`. Se vier depois, ele loga o status HTTP no momento em que a exception passa por ele (geralmente 500 default), antes do handler converter pra 503/504 com mensagem amigável — o log "mente" sobre o que o cliente realmente recebeu. Com a ordem correta, o exception handler "termina" o request primeiro (escrevendo 503 no response), e o request logging registra o status verdadeiro quando o pipeline retorna.
+
+**CORS aberto em dev (`AllowAnyOrigin`)**. A política `ArgusCors` libera qualquer origem, header e método. Isso é deliberado pro ambiente acadêmico: o app mobile (React Native em emulador ou device físico em rede local) bate na API a partir de IPs imprevisíveis, e o objetivo da disciplina não é demonstrar configuração fina de CORS — é demonstrar que o problema foi reconhecido e tratado. Em produção, a política seria restrita ao domínio publicado do app mobile via Application Settings. O posicionamento de `UseCors()` antes de `UseAuthentication()` é essencial pra que o preflight `OPTIONS` (que vai sem token) não retorne 401 antes de a policy ser avaliada.
+
 ## Deploy na Azure
 
 A API é publicada no **Azure App Service**, que hospeda o runtime .NET 9 e expõe o Swagger publicamente. A conexão com o Oracle FIAP e o JWT secret são injetados como **Application Settings** no portal — nunca commitados no repositório (segue o padrão "User Secrets em dev, variável de ambiente em prod" cobrado pela disciplina).
@@ -568,28 +657,19 @@ A API é publicada no **Azure App Service**, que hospeda o runtime .NET 9 e exp�
 | `Jwt__Key` | `JwtSettings.Key` | Chave HMAC SHA-256 usada pra assinar e validar o JWT |
 | `Auth__CodigoConvite` | `AuthController` (registro de novo usuário) | Código fixo que o brigadista digita ao se cadastrar |
 | `JavaApi__BaseUrl` | `HttpClient` registrado no `Program.cs` | URL pública da API Java (alertas + focos) |
+| `RabbitMq__ConnectionString` | `AlertaConsumerService` | URL AMQP do CloudAMQP (formato `amqps://user:pass@host/vhost`) — consumida pelo BackgroundService |
 
 > Observação: o duplo underscore (`__`) é a forma do ASP.NET Core ler chaves hierárquicas a partir de variáveis de ambiente — equivale ao `:` usado no `appsettings.json` (`ConnectionStrings:OracleDb`).
 
-### Passo a passo do deploy manual
+### URL do ambiente publicado
 
-```bash
-# 1. Login na Azure CLI
-az login
+Após o deploy estar concluído, esta seção será atualizada com a URL pública do App Service. Os endpoints principais ficam disponíveis em:
 
-# 2. Publica o build local direto no App Service (sem container)
-az webapp up \
-  --name argus-operations \
-  --resource-group rg-argus-gs2026 \
-  --runtime "DOTNETCORE:9.0" \
-  --location eastus
-```
+- **Landing page institucional:** `https://<host>/`
+- **Swagger UI:** `https://<host>/swagger`
+- **Health check:** `https://<host>/health`
 
-Após o deploy, o Swagger fica disponível em `https://argus-operations.azurewebsites.net/swagger` e o health check em `https://argus-operations.azurewebsites.net/health`.
-
-### CI/CD
-
-O repositório está preparado pra pipeline contínua no Azure DevOps: o `azure-pipelines.yml` (gerado via wizard de App Service) executa `dotnet restore` → `dotnet build` → `dotnet test` → `dotnet publish` e faz o deploy automático a cada push na `main`.
+O pipeline de CI/CD (Azure Pipelines) executa `dotnet restore` → `dotnet build` → `dotnet test` → `dotnet publish` e dispara o deploy automático a cada push na `main`.
 
 ## Prints e evidências
 
@@ -635,9 +715,9 @@ Suíte completa em xUnit rodando localmente — 26 testes cobrindo `AuthControll
 
 | Nome | RM | Responsabilidade no Argus |
 |---|---|---|
-| Anna Bonfim | 561052 | .NET (esta API) + Mobile (React Native) + parte de Compliance/TOGAF |
-| _A preencher_ | _RM_ | Java Intelligence (ingestão FIRMS, IA, RAG) + PL/SQL |
-| _A preencher_ | _RM_ | DevOps & Cloud (Azure Pipelines) + Compliance/Archimate |
+| Anna Beatriz de Araujo Bonfim | 559561 | .NET (esta API) + Mobile (React Native) + parte de Compliance/TOGAF |
+| Alane Rocha da Silva | 561052 | Java Advanced (Intelligence API + RabbitMQ) + PL/SQL + Compliance |
+| Maria Eduarda Araujo Penas | 560944 | DevOps & Cloud (Azure Pipelines) + Disruptive Architectures (IoT) + Compliance |
 
 **Turma:** TDS — FIAP
 **Projeto:** Global Solution 2026/1 — Argus
