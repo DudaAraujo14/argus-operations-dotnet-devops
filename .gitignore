@@ -482,3 +482,10 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Pessoal (não versionar)
+TESTE_FINAL.md
+
+# Artefatos de build local
+publish.zip
+publish/
