@@ -187,15 +187,15 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 // ===== Pipeline HTTP =====
-if (app.Environment.IsDevelopment())
+// Swagger habilitado em TODAS as envs (inclusive Production) intencionalmente
+// pra que a banca da GS consiga validar contratos REST e testar endpoints
+// diretamente na URL pública. Em produto real isso ficaria atrás de auth.
+app.UseSwagger();
+app.UseSwaggerUI(options =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Argus API v1");
-        options.RoutePrefix = "swagger";
-    });
-}
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Argus API v1");
+    options.RoutePrefix = "swagger";
+});
 
 if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
