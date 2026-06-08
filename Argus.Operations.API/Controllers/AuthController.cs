@@ -67,6 +67,13 @@ public class AuthController : ControllerBase
         if (emailJaExiste)
             return Conflict("Já existe um usuário com este email.");
 
+        // Auto-vinculação por convenção de email — padrão SSO (Slack/Github
+        // fazem assim). Se já existe um Brigadista (entidade operacional)
+        // com o mesmo email, vincula automaticamente. Senão, fica null e o
+        // coordenador pode vincular depois via PUT /api/usuarios/{id}.
+        var brigadistaCorrespondente = await _context.Brigadistas
+            .FirstOrDefaultAsync(b => b.Email == request.Email);
+
         var usuario = new Usuario
         {
             Nome = request.Nome,
@@ -78,7 +85,8 @@ public class AuthController : ControllerBase
             SenhaHash = _passwordHasher.Hash(request.Senha),
             Perfil = PerfilUsuario.Brigadista,
             Ativo = true,
-            DataCriacao = DateTime.UtcNow
+            DataCriacao = DateTime.UtcNow,
+            BrigadistaId = brigadistaCorrespondente?.Id
         };
 
         _context.Usuarios.Add(usuario);
@@ -141,7 +149,8 @@ public class AuthController : ControllerBase
             usuario.NomeEmergencia,
             usuario.TelefoneEmergencia,
             usuario.RelacaoEmergencia,
-            usuario.Perfil
+            usuario.Perfil,
+            usuario.BrigadistaId
         );
         return new AuthResponse(token, expiraEm, usuarioResponse);
     }

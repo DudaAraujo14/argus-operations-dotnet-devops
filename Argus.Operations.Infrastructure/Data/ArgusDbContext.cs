@@ -134,6 +134,16 @@ public class ArgusDbContext : DbContext
             entity.Property(u => u.DataCriacao).HasColumnName("DATA_CRIACAO").IsRequired();
             entity.Property(u => u.UltimoLogin).HasColumnName("ULTIMO_LOGIN");
 
+            // FK opcional pro Brigadista correspondente. SetNull no delete pra
+            // que apagar um Brigadista não derrube o Usuario (mantém o login,
+            // só desfaz a vinculação operacional).
+            entity.Property(u => u.BrigadistaId).HasColumnName("ID_BRIGADISTA");
+            entity.HasOne(u => u.Brigadista)
+                  .WithMany()
+                  .HasForeignKey(u => u.BrigadistaId)
+                  .IsRequired(false)
+                  .OnDelete(DeleteBehavior.SetNull);
+
             // Email único (não pode ter dois usuários com o mesmo email)
             entity.HasIndex(u => u.Email).IsUnique();
         });

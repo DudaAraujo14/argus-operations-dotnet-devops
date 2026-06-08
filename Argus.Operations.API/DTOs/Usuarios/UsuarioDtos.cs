@@ -14,7 +14,10 @@ public record CreateUsuarioRequest(
     [MaxLength(20)] string? TelefoneEmergencia,
     [MaxLength(30)] string? RelacaoEmergencia,
     [Required, MinLength(6)] string Senha,
-    [Required] PerfilUsuario Perfil
+    [Required] PerfilUsuario Perfil,
+    // Opcional — vincula o Usuario a um Brigadista (entidade operacional).
+    // Faz sentido só pra perfil Brigadista; pra Admin/Coordenador deixa null.
+    long? BrigadistaId
 );
 
 // Payload de atualização. Não inclui senha (troca de senha tem fluxo próprio,
@@ -27,7 +30,10 @@ public record UpdateUsuarioRequest(
     [MaxLength(20)] string? TelefoneEmergencia,
     [MaxLength(30)] string? RelacaoEmergencia,
     [Required] PerfilUsuario Perfil,
-    [Required] bool Ativo
+    [Required] bool Ativo,
+    // Permite (re)vincular o Usuario a um Brigadista via PUT — esse é o caminho
+    // pro coordenador linkar um usuário cadastrado a um membro de brigada.
+    long? BrigadistaId
 );
 
 // Resposta pública do recurso — NUNCA inclui SenhaHash. Carrega Ativo,
@@ -43,5 +49,6 @@ public record UsuarioDetalheResponse(
     PerfilUsuario Perfil,
     bool Ativo,
     DateTime DataCriacao,
-    DateTime? UltimoLogin
+    DateTime? UltimoLogin,
+    long? BrigadistaId
 );

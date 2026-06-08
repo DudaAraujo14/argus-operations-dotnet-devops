@@ -87,6 +87,7 @@ erDiagram
     BRIGADA ||--o{ OCORRENCIA : "atende"
     BRIGADISTA ||--o{ OCORRENCIA : "responsavel por"
     OCORRENCIA ||--o{ REGISTRO_CAMPO : "gera"
+    USUARIO |o--o| BRIGADISTA : "vincula (opcional)"
 
     BRIGADA {
         long ID_BRIGADA PK
@@ -143,10 +144,13 @@ erDiagram
         bool ATIVO
         date DATA_CRIACAO
         date ULTIMO_LOGIN
+        long ID_BRIGADISTA "FK opcional"
     }
 ```
 
-A entidade `Usuario` é independente do restante do domínio — representa quem opera o sistema (admin, coordenador ou brigadista). O `ID_ALERTA` em `OCORRENCIA` é uma referência cross-domain ao módulo Java do projeto (não está no escopo deste repositório); por isso é nullable e a FK não é criada via EF Core. Como cada microserviço (Java e .NET) opera contra um schema Oracle FIAP **separado** — decisão tomada para evitar a competição pelo limite de `SESSIONS_PER_USER = 10` no servidor da FIAP —, essa referência é puramente lógica: o `AlertaId` carrega o identificador do alerta do lado do Java sem qualquer constraint física entre os schemas. A integração entre os dois lados acontece via HTTP (proxy) e mensageria assíncrona, não via banco.
+A entidade `Usuario` representa quem opera o sistema (admin, coordenador ou brigadista). Carrega uma FK **opcional** `ID_BRIGADISTA` que vincula o usuário à entidade operacional Brigadista correspondente — quando preenchida, identifica "qual membro da brigada esse login representa". Nullable porque Admin/Coordenador podem não atuar em campo, e brigadistas voluntários podem se auto-cadastrar antes de serem oficialmente alocados a uma brigada. A vinculação acontece automaticamente no auto-cadastro quando o email bate (padrão SSO — ver [Decisões técnicas](#decisões-técnicas-relevantes)) ou manualmente via `PUT /api/usuarios/{id}`.
+
+O `ID_ALERTA` em `OCORRENCIA` é uma referência cross-domain ao módulo Java do projeto (não está no escopo deste repositório); por isso é nullable e a FK não é criada via EF Core. Como cada microserviço (Java e .NET) opera contra um schema Oracle FIAP **separado** — decisão tomada para evitar a competição pelo limite de `SESSIONS_PER_USER = 10` no servidor da FIAP —, essa referência é puramente lógica: o `AlertaId` carrega o identificador do alerta do lado do Java sem qualquer constraint física entre os schemas. A integração entre os dois lados acontece via HTTP (proxy) e mensageria assíncrona, não via banco.
 
 Os enums `PerfilUsuario`, `TipoRecurso` e `StatusOcorrencia` são mapeados como `int` no Oracle (via `HasConversion<int>()`), o que permite filtros e relatórios sem precisar de joins com tabelas de domínio.
 
@@ -323,7 +327,29 @@ A partir daqui é só ir nos endpoints, abrir **Try it out**, colar o JSON corre
 }
 ```
 
-Resposta: `200 OK` com `token`, `expiraEm` e `usuario` (perfil Brigadista).
+Resposta: `200 OK` com `token`, `expiraEm` e `usuario` (perfil Brigadista, `brigadistaId` preenchido se o email bateu com algum Brigadista cadastrado — ver "demonstrando a auto-vinculação" abaixo).
+
+### Demonstrando a auto-vinculação `Usuario` ↔ `Brigadista`
+
+Pra ver a vinculação automática por email acontecendo (padrão SSO descrito em [Decisões técnicas](#decisões-técnicas-relevantes)):
+
+1. Login como admin (`admin@argus.com` / `Admin@123`), autoriza no Swagger
+2. `GET /api/brigadistas` — escolha um da lista e anote o **email** (ex.: `maria.silva@argus.com`, id 1)
+3. **Logout** no Authorize
+4. `POST /api/auth/register` com o **mesmo email** que você anotou:
+   ```json
+   {
+     "nome": "Maria Silva",
+     "email": "maria.silva@argus.com",
+     "telefone": "11900000000",
+     "senha": "Senha@123",
+     "codigoConvite": "ARGUS-2026"
+   }
+   ```
+5. Na resposta, o objeto `usuario` vai vir com `brigadistaId: 1` preenchido — a vinculação aconteceu automaticamente pelo email
+6. Login com o user recém-criado → `GET /api/auth/me` confirma o claim/contexto
+
+Se você usar um email que **não bate** com nenhum brigadista (ex.: `aleatorio@teste.com`), o cadastro funciona mas o `brigadistaId` vem `null`. Admin pode vincular depois via `PUT /api/usuarios/{id}` passando o `brigadistaId`.
 
 ### `PUT /api/auth/me` — usuário atualiza o próprio perfil
 
@@ -728,6 +754,8 @@ Algumas escolhas de projeto que merecem nota:
 
 **Defense in depth no mobile**. Embora o app mobile aplique UI condicional (esconde botões que o usuário não pode usar), o backend não confia nisso: todo endpoint mantém seu `[Authorize(Roles = "...")]` ativo. A UI evita confusão e cliques sem efeito; o backend garante segurança real. Um aplicativo modificado ou uma chamada feita por fora ainda recebe 403 do servidor.
 
+**Separação `Usuario` x `Brigadista` com auto-vinculação por email (padrão SSO)**. Modelamos os dois como aggregates distintos: `Usuario` é o **contexto de autenticação** (quem tem credencial pra entrar no sistema), `Brigadista` é o **contexto operacional** (membro despachado pra ocorrências em campo). A ligação acontece via FK opcional `Usuario.BrigadistaId`. No `POST /api/auth/register`, se o email do novo usuário bater com algum `Brigadista` já cadastrado, o vínculo é estabelecido automaticamente — mesmo padrão que SSO como Slack/GitHub usam (você cria a conta, e fica vinculado aos workspaces/orgs onde seu email tá registrado). Caso o email não bata, o usuário fica como "voluntário pré-vinculação" e pode ser linkado depois pelo coordenador via `PUT /api/usuarios/{id}`. Essa separação reflete cenários reais: brigadistas voluntários cadastrados sem login, e admins/coordenadores administrativos sem necessariamente atuar em campo.
+
 **Serilog substituindo o `ILogger` padrão, posicionado ANTES do `UseExceptionHandler`**. O `ILogger` default do ASP.NET Core emite logs em texto simples e quebra cada request em 3-4 linhas separadas (start, action selecting, executing, completed). O Serilog com `UseSerilogRequestLogging()` consolida em uma linha estruturada por request (método, path, status, duração em ms) e permite que filtros por `SourceContext` sejam definidos sem recompilar — útil pra silenciar verbosidade do EF Core sem perder logs da aplicação. O detalhe sutil é o **posicionamento no pipeline**: `UseSerilogRequestLogging()` precisa vir antes de `UseExceptionHandler()`. Se vier depois, ele loga o status HTTP no momento em que a exception passa por ele (geralmente 500 default), antes do handler converter pra 503/504 com mensagem amigável — o log "mente" sobre o que o cliente realmente recebeu. Com a ordem correta, o exception handler "termina" o request primeiro (escrevendo 503 no response), e o request logging registra o status verdadeiro quando o pipeline retorna.
 
 **CORS aberto em dev (`AllowAnyOrigin`)**. A política `ArgusCors` libera qualquer origem, header e método. Isso é deliberado pro ambiente acadêmico: o app mobile (React Native em emulador ou device físico em rede local) bate na API a partir de IPs imprevisíveis, e o objetivo da disciplina não é demonstrar configuração fina de CORS — é demonstrar que o problema foi reconhecido e tratado. Em produção, a política seria restrita ao domínio publicado do app mobile via Application Settings. O posicionamento de `UseCors()` antes de `UseAuthentication()` é essencial pra que o preflight `OPTIONS` (que vai sem token) não retorne 401 antes de a policy ser avaliada.
@@ -750,13 +778,18 @@ A API é publicada no **Azure App Service**, que hospeda o runtime .NET 9 e exp�
 
 ### URL do ambiente publicado
 
-Após o deploy estar concluído, esta seção será atualizada com a URL pública do App Service. Os endpoints principais ficam disponíveis em:
+A API está deployada em **Azure App Service (Linux, B1)** na região South Africa North:
 
-- **Landing page institucional:** `https://<host>/`
-- **Swagger UI:** `https://<host>/swagger`
-- **Health check:** `https://<host>/health`
+- 🌐 **Landing page institucional:** https://argus-operations-rm559561.azurewebsites.net
+- 📘 **Swagger UI:** https://argus-operations-rm559561.azurewebsites.net/swagger
+- ❤️ **Health check:** https://argus-operations-rm559561.azurewebsites.net/health
+- 📄 **OpenAPI JSON:** https://argus-operations-rm559561.azurewebsites.net/swagger/v1/swagger.json
 
-O pipeline de CI/CD (Azure Pipelines) executa `dotnet restore` → `dotnet build` → `dotnet test` → `dotnet publish` e dispara o deploy automático a cada push na `main`.
+### Pipeline CI/CD
+
+Workflow GitHub Actions gerado pelo **Azure Deployment Center** com autenticação federada **OIDC** (User-assigned Managed Identity) — nenhum publish profile ou senha vai pro repositório, apenas IDs públicos das credenciais federadas. A cada `git push` na `main`, o pipeline executa: `dotnet restore` → `dotnet build` → `dotnet publish` no GitHub Runner → upload de artefato → deploy no App Service.
+
+Arquivo do workflow: [`.github/workflows/main_argus-operations-rm559561.yml`](.github/workflows/main_argus-operations-rm559561.yml).
 
 ## Prints e evidências
 

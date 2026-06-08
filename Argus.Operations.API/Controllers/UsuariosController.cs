@@ -65,7 +65,8 @@ public class UsuariosController : ControllerBase
             SenhaHash = _hasher.Hash(request.Senha),
             Perfil = request.Perfil,
             Ativo = true,
-            DataCriacao = DateTime.UtcNow
+            DataCriacao = DateTime.UtcNow,
+            BrigadistaId = request.BrigadistaId
         };
 
         _context.Usuarios.Add(usuario);
@@ -96,6 +97,7 @@ public class UsuariosController : ControllerBase
         usuario.RelacaoEmergencia = request.RelacaoEmergencia;
         usuario.Perfil = request.Perfil;
         usuario.Ativo = request.Ativo;
+        usuario.BrigadistaId = request.BrigadistaId;
 
         await _context.SaveChangesAsync();
 
@@ -127,6 +129,7 @@ public class UsuariosController : ControllerBase
         u.Perfil,
         u.Ativo,
         u.DataCriacao,
-        u.UltimoLogin
+        u.UltimoLogin,
+        u.BrigadistaId
     );
 }

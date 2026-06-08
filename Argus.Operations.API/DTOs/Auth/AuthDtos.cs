@@ -35,7 +35,11 @@ public record UsuarioResponse(
     string? NomeEmergencia,
     string? TelefoneEmergencia,
     string? RelacaoEmergencia,
-    PerfilUsuario Perfil
+    PerfilUsuario Perfil,
+    // Vínculo opcional com a entidade operacional Brigadista. Preenchido
+    // pelo auto-cadastro quando o email bate (auto-vinculação SSO-like) ou
+    // pelo admin via PUT /api/usuarios/{id}.
+    long? BrigadistaId
 );
 
 // Payload do PUT /api/auth/me — usuário logado editando o próprio perfil.
