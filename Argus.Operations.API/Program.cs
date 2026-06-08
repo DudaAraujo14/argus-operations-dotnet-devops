@@ -43,19 +43,33 @@ builder.Services.AddHealthChecks()
 
 // ===== Clientes HTTP tipados pra API Java (alertas e focos via satélite) =====
 // URL base configurável em appsettings → JavaApi:BaseUrl (override por user-secrets ou env).
-builder.Services.AddHttpClient<IAlertaJavaClient, AlertaJavaClient>(client =>
+// Os clients de domínio (Alerta, FocoCalor) passam pelo JavaAuthHandler que
+// injeta um Bearer token obtido via POST /api/auth/login no Java — defesa em
+// profundidade, nenhum endpoint do Java fica aberto.
+var javaBaseUrl = builder.Configuration["JavaApi:BaseUrl"] ?? "http://localhost:8080";
+
+// JavaAuthClient é HttpClient separado e SEM o handler — pra evitar
+// recursão (precisaria de token pra pedir token).
+builder.Services.AddHttpClient<IJavaAuthClient, JavaAuthClient>(client =>
 {
-    var baseUrl = builder.Configuration["JavaApi:BaseUrl"] ?? "http://localhost:8080";
-    client.BaseAddress = new Uri(baseUrl);
+    client.BaseAddress = new Uri(javaBaseUrl);
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 
+builder.Services.AddSingleton<JavaTokenProvider>();
+builder.Services.AddTransient<JavaAuthHandler>();
+
+builder.Services.AddHttpClient<IAlertaJavaClient, AlertaJavaClient>(client =>
+{
+    client.BaseAddress = new Uri(javaBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).AddHttpMessageHandler<JavaAuthHandler>();
+
 builder.Services.AddHttpClient<IFocoCalorJavaClient, FocoCalorJavaClient>(client =>
 {
-    var baseUrl = builder.Configuration["JavaApi:BaseUrl"] ?? "http://localhost:8080";
-    client.BaseAddress = new Uri(baseUrl);
+    client.BaseAddress = new Uri(javaBaseUrl);
     client.Timeout = TimeSpan.FromSeconds(10);
-});
+}).AddHttpMessageHandler<JavaAuthHandler>();
 
 // ===== Swagger/OpenAPI com suporte a Bearer JWT =====
 builder.Services.AddEndpointsApiExplorer();
