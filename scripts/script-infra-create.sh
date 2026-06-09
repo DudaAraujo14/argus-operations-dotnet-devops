@@ -5,9 +5,19 @@ set -e
 # ============================================================
 # SCRIPT DE INFRAESTRUTURA AZURE CLI
 # Projeto: Argus Operations .NET
+# Disciplina: DevOps Tools & Cloud Computing
 # RM: 561052
-# Deploy: ACR + ACI
+# Deploy: Azure Container Registry + Azure Container Instance
+# Work Item: AB#2 - Provisionar infraestrutura Azure via Azure CLI
 # ============================================================
+
+# Este script provisiona os recursos de nuvem utilizados na entrega:
+# - Resource Group
+# - Azure Container Registry
+# - Azure Container Instance
+#
+# A imagem inicial do ACI e temporaria.
+# A pipeline de Release substitui essa imagem pela imagem real da API.
 
 # Variaveis principais
 RM="rm561052"
@@ -93,7 +103,6 @@ else
 fi
 
 # Criar Azure Container Instance inicial com imagem publica temporaria
-# A pipeline de release depois substituira essa imagem pela imagem real da API.
 echo "Verificando Azure Container Instance..."
 if az container show --name "${ACI_NAME}" --resource-group "${RESOURCE_GROUP}" > /dev/null 2>&1
 then
