@@ -1,848 +1,733 @@
-<p align="center">
-  <img src="Argus.Operations.API/wwwroot/images/argus_symbol_only_transparent.png" alt="Argus" width="180">
-</p>
-
-# Argus Operations API
+# Argus Operations API — DevOps Tools & Cloud Computing
 
 <p align="center">
-  <img alt=".NET 9" src="https://img.shields.io/badge/.NET%209-512BD4?style=for-the-badge&logo=dotnet&logoColor=white">
+  <img alt=".NET" src="https://img.shields.io/badge/.NET%209-512BD4?style=for-the-badge&logo=dotnet&logoColor=white">
   <img alt="C#" src="https://img.shields.io/badge/C%23-239120?style=for-the-badge&logo=csharp&logoColor=white">
   <img alt="ASP.NET Core" src="https://img.shields.io/badge/ASP.NET%20Core-Web%20API-512BD4?style=for-the-badge&logo=dotnet&logoColor=white">
-  <img alt="Entity Framework Core" src="https://img.shields.io/badge/EF%20Core%209-512BD4?style=for-the-badge&logo=dotnet&logoColor=white">
-  <img alt="Oracle" src="https://img.shields.io/badge/Oracle%20DB-F80000?style=for-the-badge&logo=oracle&logoColor=white">
-  <img alt="JWT" src="https://img.shields.io/badge/JWT-Bearer-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white">
-  <img alt="Swagger" src="https://img.shields.io/badge/Swagger-OpenAPI-85EA2D?style=for-the-badge&logo=swagger&logoColor=black">
-  <img alt="Serilog" src="https://img.shields.io/badge/Serilog-Structured%20Logs-1C1C1C?style=for-the-badge">
-  <img alt="xUnit" src="https://img.shields.io/badge/xUnit-26%2F26%20%E2%9C%93-5C2D91?style=for-the-badge">
-  <img alt="Azure" src="https://img.shields.io/badge/Azure-App%20Service-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white">
+  <img alt="Oracle" src="https://img.shields.io/badge/Oracle%20Database-F80000?style=for-the-badge&logo=oracle&logoColor=white">
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-Container-2496ED?style=for-the-badge&logo=docker&logoColor=white">
+  <img alt="Azure DevOps" src="https://img.shields.io/badge/Azure%20DevOps-Boards%20%7C%20Repos%20%7C%20Pipelines-0078D7?style=for-the-badge&logo=azuredevops&logoColor=white">
+  <img alt="Azure" src="https://img.shields.io/badge/Azure-ACR%20%2B%20ACI-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white">
 </p>
 
-API operacional do sistema **Argus**, voltada a operações de combate a incêndios florestais. Concentra a gestão de brigadas, brigadistas, recursos materiais, ocorrências em campo e registros de atendimento, expondo um conjunto de endpoints REST protegidos por autenticação JWT.
+---
 
-O projeto faz parte da Global Solution 2026/1 da FIAP, cujo tema é **economia espacial**. Entre as direções sugeridas pela banca, escolhemos aplicar dados de satélite a um problema real em terra: o combate a incêndios florestais. O Argus se posiciona no eixo de **monitoramento ambiental e resposta a desastres** — a API operacional aqui presente é o backend que recebe os alertas de queimadas detectados por satélite (vindos do domínio Java, externo a esta API) e coordena a resposta das brigadas em campo.
+## 1. Visão Geral do Projeto
 
-## Sumário
+O **Argus Operations API** é uma API REST desenvolvida em **C# com ASP.NET Core .NET 9**, utilizada para apoio operacional no gerenciamento de recursos, equipes e ocorrências relacionadas a operações de combate, prevenção e monitoramento.
 
-- [Stack](#stack)
-- [Arquitetura](#arquitetura)
-- [Modelo de domínio](#modelo-de-domínio)
-- [Como rodar localmente](#como-rodar-localmente)
-- [Autenticação e autorização](#autenticação-e-autorização)
-- [Matriz de permissões](#matriz-de-permissões)
-- [Endpoints](#endpoints)
-- [Como testar no Swagger](#como-testar-no-swagger)
-- [Tratamento global de erros](#tratamento-global-de-erros)
-- [Health check](#health-check)
-- [Integração com a API Java](#integração-com-a-api-java)
-- [Mensageria assíncrona (RabbitMQ)](#mensageria-assíncrona-rabbitmq)
-- [Landing page institucional](#landing-page-institucional)
-- [Testes automatizados](#testes-automatizados)
-- [Estrutura de pastas](#estrutura-de-pastas)
-- [Decisões técnicas relevantes](#decisões-técnicas-relevantes)
-- [Deploy na Azure](#deploy-na-azure)
-- [Prints e evidências](#prints-e-evidências)
-- [Integrantes](#integrantes)
+Este repositório foi estruturado para a entrega da disciplina **DevOps Tools & Cloud Computing**, utilizando uma solução da disciplina **Advanced Business Development with .NET**.
 
-## Stack
+O foco principal desta entrega é demonstrar um fluxo DevOps completo com:
 
-| Categoria | Tecnologia |
-|---|---|
-| Runtime | .NET 9 |
-| Web | ASP.NET Core 9 (Controllers + Swagger UI via Swashbuckle 6.9) |
-| Persistência | Entity Framework Core 9 com provider Oracle (Oracle.EntityFrameworkCore 9.x) |
-| Banco | Oracle 19c (servidor FIAP) |
-| Autenticação | JWT Bearer + BCrypt para hash de senhas |
-| Logging | Serilog (estruturado, JSON-friendly) + `UseSerilogRequestLogging` |
-| Mensageria | RabbitMQ.Client 7.x consumindo broker AMQP gerenciado (CloudAMQP/LavinMQ) |
-| Front estático | `wwwroot/index.html` servido em `/` com identidade visual compartilhada Java + .NET |
-| Testes | xUnit 2.9 + EF Core InMemory |
+* Planejamento e rastreabilidade no **Azure Boards**.
+* Versionamento Git no **Azure Repos**.
+* Integração e entrega contínua com **Azure Pipelines**.
+* Infraestrutura provisionada por **Azure CLI**.
+* Containerização com **Docker**.
+* Publicação da imagem no **Azure Container Registry — ACR**.
+* Deploy em nuvem no **Azure Container Instance — ACI**.
+* Execução de testes automatizados.
+* Publicação de artefatos de build.
+* Validação de CRUD em ambiente publicado em nuvem.
 
-## Arquitetura
+---
 
-A solução segue o padrão Clean Architecture com quatro projetos. As dependências apontam sempre em direção ao domínio: a API conhece todas as camadas, mas o domínio não conhece ninguém. Isso permite que regras de negócio fiquem isoladas de detalhes de infraestrutura (qual ORM, qual provider, qual mecanismo de hash).
+## 2. Integrantes
+
+| Nome                          |       RM | Responsabilidade                                                         |
+| ----------------------------- | -------: | ------------------------------------------------------------------------ |
+| Maria Eduarda Araujo Penas    | RM560944 | DevOps, Azure DevOps, Azure Repos, Azure Pipelines, documentação e vídeo |
+| Alane Rocha da Silva          | RM561052 | Backend .NET, infraestrutura Azure, banco de dados e deploy              |
+| Anna Beatriz de Araujo Bonfim | RM559561 | Apoio em frontend, IA, documentação e validações                         |
+
+---
+
+## 3. Objetivo da Entrega DevOps
+
+O objetivo da entrega é implementar em nuvem uma solução .NET utilizando o ecossistema do **Azure DevOps**, contemplando:
+
+1. Criação de projeto privado no Azure DevOps.
+2. Importação do código fonte para o Azure Repos.
+3. Criação de tarefas no Azure Boards.
+4. Vinculação de branch, commits e Pull Request às tarefas.
+5. Proteção da branch principal `main`.
+6. Criação de pipeline de Build com testes e artefatos.
+7. Criação de fluxo de Release/Deploy automático.
+8. Provisionamento da infraestrutura por script Azure CLI.
+9. Deploy da API em nuvem utilizando container.
+10. Demonstração de operações CRUD em pelo menos duas tabelas.
+
+---
+
+## 4. Stack Técnica
+
+| Camada              | Tecnologia               |
+| ------------------- | ------------------------ |
+| Linguagem           | C#                       |
+| Framework           | ASP.NET Core .NET 9      |
+| Arquitetura         | Clean Architecture       |
+| API                 | REST JSON                |
+| ORM                 | Entity Framework Core    |
+| Banco de dados      | Oracle                   |
+| Autenticação        | JWT Bearer               |
+| Documentação da API | Swagger / OpenAPI        |
+| Testes              | xUnit                    |
+| Containerização     | Docker                   |
+| Registry            | Azure Container Registry |
+| Deploy              | Azure Container Instance |
+| CI/CD               | Azure Pipelines          |
+| Versionamento       | Azure Repos Git          |
+| Gestão de tarefas   | Azure Boards             |
+| Infraestrutura      | Azure CLI                |
+
+---
+
+## 5. Arquitetura da Aplicação C#/.NET
+
+A aplicação segue uma organização em camadas, baseada em princípios de separação de responsabilidades. Essa estrutura facilita manutenção, testes, evolução da API e integração com banco de dados e serviços externos.
 
 ```mermaid
-graph TD
-    API["Argus.Operations.API<br/>Controllers, DTOs, Swagger, JWT middleware"]
-    APP["Argus.Operations.Application<br/>Interfaces de contratos (ITokenService, IPasswordHasher)"]
-    INF["Argus.Operations.Infrastructure<br/>ArgusDbContext, TokenService, BcryptPasswordHasher, Seeder"]
-    DOM["Argus.Operations.Domain<br/>Entidades e enums"]
+flowchart TD
+    Client[Cliente / Swagger / Postman] --> API[Argus.Operations.API]
 
-    API --> APP
-    API --> INF
-    API --> DOM
-    INF --> APP
-    INF --> DOM
-    APP --> DOM
+    API --> Controllers[Controllers REST]
+    API --> Auth[Autenticação JWT]
+    API --> Swagger[Swagger / OpenAPI]
+
+    Controllers --> Application[Argus.Operations.Application]
+    Application --> Domain[Argus.Operations.Domain]
+
+    API --> Infrastructure[Argus.Operations.Infrastructure]
+    Infrastructure --> EF[Entity Framework Core]
+    EF --> DB[(Oracle Database)]
+
+    Infrastructure --> Services[Serviços de Infraestrutura]
+    Services --> Token[Token Service]
+    Services --> Security[Password Hasher]
 ```
 
-Os contratos de autenticação ficam na Application (`ITokenService`, `IPasswordHasher`); a implementação concreta (`TokenService`, `BcryptPasswordHasher`) está na Infrastructure. O AuthController depende das interfaces, não da implementação — substituir BCrypt por Argon2 amanhã exigiria uma classe nova na Infrastructure e zero linha alterada no controller.
+### Projetos da Solution
 
-## Modelo de domínio
+| Projeto                           | Responsabilidade                                                                       |
+| --------------------------------- | -------------------------------------------------------------------------------------- |
+| `Argus.Operations.API`            | Camada de entrada da aplicação, controllers, autenticação, Swagger e configuração HTTP |
+| `Argus.Operations.Application`    | Regras de aplicação, contratos, interfaces e DTOs                                      |
+| `Argus.Operations.Domain`         | Entidades, enums e regras de domínio                                                   |
+| `Argus.Operations.Infrastructure` | Persistência, Entity Framework, serviços concretos e integrações                       |
+| `Argus.Operations.Tests`          | Testes automatizados da aplicação                                                      |
+
+---
+
+## 6. Arquitetura DevOps em Nuvem
+
+A arquitetura DevOps utiliza o Azure DevOps para controlar o ciclo de vida da aplicação e o Azure Cloud para executar a API publicada em container.
 
 ```mermaid
-erDiagram
-    BRIGADA ||--o{ BRIGADISTA : "lotada em"
-    BRIGADA ||--o{ RECURSO : "possui"
-    BRIGADA ||--o{ OCORRENCIA : "atende"
-    BRIGADISTA ||--o{ OCORRENCIA : "responsavel por"
-    OCORRENCIA ||--o{ REGISTRO_CAMPO : "gera"
-    USUARIO |o--o| BRIGADISTA : "vincula (opcional)"
+flowchart LR
+    Dev[Desenvolvedor] --> Boards[Azure Boards]
+    Dev --> Repos[Azure Repos]
 
-    BRIGADA {
-        long ID_BRIGADA PK
-        string NOME
-        string BASE_OPERACIONAL
-        string TELEFONE
-        bool ATIVA
-    }
-    BRIGADISTA {
-        long ID_BRIGADISTA PK
-        string NOME
-        string MATRICULA
-        string EMAIL
-        string TELEFONE
-        string FUNCAO
-        bool ATIVO
-        date DATA_ADMISSAO
-        long ID_BRIGADA FK
-    }
-    RECURSO {
-        long ID_RECURSO PK
-        string NOME
-        int TIPO
-        bool DISPONIVEL
-        long ID_BRIGADA FK
-    }
-    OCORRENCIA {
-        long ID_OCORRENCIA PK
-        string DESCRICAO
-        double LATITUDE
-        double LONGITUDE
-        int STATUS
-        date DATA_ABERTURA
-        date DATA_FINALIZACAO
-        long ID_BRIGADISTA FK
-        long ID_BRIGADA FK
-        long ID_ALERTA "FK cross-domain Java"
-    }
-    REGISTRO_CAMPO {
-        long ID_REGISTRO_CAMPO PK
-        string OBSERVACAO
-        string URL_FOTO
-        double LATITUDE
-        double LONGITUDE
-        date DATA_REGISTRO
-        long ID_OCORRENCIA FK
-    }
-    USUARIO {
-        long ID_USUARIO PK
-        string NOME
-        string EMAIL "unique"
-        string SENHA_HASH
-        int PERFIL
-        bool ATIVO
-        date DATA_CRIACAO
-        date ULTIMO_LOGIN
-        long ID_BRIGADISTA "FK opcional"
-    }
+    Boards --> Tasks[Tasks / Work Items]
+    Tasks --> Branch[Feature Branch]
+
+    Repos --> Branch
+    Branch --> Commit[Commits vinculados]
+    Commit --> PR[Pull Request]
+
+    PR --> Policy[Branch Policy]
+    Policy --> Main[Main protegida]
+
+    Main --> Pipeline[Azure Pipelines]
+
+    Pipeline --> CI[Build CI]
+    CI --> Restore[dotnet restore]
+    Restore --> Build[dotnet build]
+    Build --> Test[dotnet test]
+    Test --> Artifact[Artefatos]
+
+    Pipeline --> CD[Release CD]
+    CD --> Docker[Docker Build]
+    Docker --> ACR[Azure Container Registry]
+    ACR --> ACI[Azure Container Instance]
+
+    ACI --> API[API .NET em Nuvem]
+    API --> Database[(Banco de Dados)]
 ```
 
-A entidade `Usuario` representa quem opera o sistema (admin, coordenador ou brigadista). Carrega uma FK **opcional** `ID_BRIGADISTA` que vincula o usuário à entidade operacional Brigadista correspondente — quando preenchida, identifica "qual membro da brigada esse login representa". Nullable porque Admin/Coordenador podem não atuar em campo, e brigadistas voluntários podem se auto-cadastrar antes de serem oficialmente alocados a uma brigada. A vinculação acontece automaticamente no auto-cadastro quando o email bate (padrão SSO — ver [Decisões técnicas](#decisões-técnicas-relevantes)) ou manualmente via `PUT /api/usuarios/{id}`.
+---
 
-O `ID_ALERTA` em `OCORRENCIA` é uma referência cross-domain ao módulo Java do projeto (não está no escopo deste repositório); por isso é nullable e a FK não é criada via EF Core. Como cada microserviço (Java e .NET) opera contra um schema Oracle FIAP **separado** — decisão tomada para evitar a competição pelo limite de `SESSIONS_PER_USER = 10` no servidor da FIAP —, essa referência é puramente lógica: o `AlertaId` carrega o identificador do alerta do lado do Java sem qualquer constraint física entre os schemas. A integração entre os dois lados acontece via HTTP (proxy) e mensageria assíncrona, não via banco.
+## 7. Fluxo DevOps Implementado
 
-Os enums `PerfilUsuario`, `TipoRecurso` e `StatusOcorrencia` são mapeados como `int` no Oracle (via `HasConversion<int>()`), o que permite filtros e relatórios sem precisar de joins com tabelas de domínio.
+```mermaid
+sequenceDiagram
+    participant Dev as Desenvolvedor
+    participant Boards as Azure Boards
+    participant Repos as Azure Repos
+    participant PR as Pull Request
+    participant Pipe as Azure Pipelines
+    participant ACR as Azure Container Registry
+    participant ACI as Azure Container Instance
 
-## Como rodar localmente
+    Dev->>Boards: Cria tasks da entrega DevOps
+    Dev->>Repos: Cria branch feature/AB1-devops-pipeline
+    Dev->>Repos: Realiza commits com referência AB#ID
+    Dev->>PR: Abre Pull Request para main
+    PR->>PR: Valida Work Items e reviewer
+    PR->>Repos: Merge na main
+    Repos->>Pipe: Dispara pipeline automaticamente
+    Pipe->>Pipe: Restore, build e testes
+    Pipe->>Pipe: Publica artefatos e resultados de teste
+    Pipe->>ACR: Build e push da imagem Docker
+    Pipe->>ACI: Atualiza container em nuvem
+    ACI->>Dev: API disponível em endpoint público
+```
+
+---
+
+## 8. Azure Boards
+
+O projeto foi organizado no **Azure Boards** com tasks separadas para demonstrar planejamento, rastreabilidade e controle da implementação.
+
+### Tasks criadas
+
+| Work Item | Título                                                               | Objetivo                                                |
+| --------- | -------------------------------------------------------------------- | ------------------------------------------------------- |
+| AB#1      | Implementar pipeline CI/CD e deploy em nuvem da API Argus Operations | Task principal da entrega DevOps                        |
+| AB#2      | Provisionar infraestrutura Azure via Azure CLI                       | Criação dos recursos Azure por script                   |
+| AB#3      | Organizar arquivos obrigatórios da entrega DevOps                    | Estrutura de `/scripts`, `/dockerfiles`, `/docs` e YAML |
+| AB#4      | Configurar pipeline de build e testes automatizados                  | Restore, build, testes e artefatos                      |
+| AB#5      | Configurar deploy automático em nuvem com ACR e ACI                  | Build da imagem, push no ACR e deploy no ACI            |
+| AB#6      | Configurar proteção da branch main e fluxo de Pull Request           | Branch policies, reviewer e vínculo com Work Item       |
+| AB#7      | Preparar documentação final, arquitetura e roteiro do vídeo          | README, arquitetura, PDF e vídeo                        |
+
+As tasks foram vinculadas ao Pull Request e aos commits por meio da referência `AB#`.
+
+Exemplo de commit vinculado:
+
+```bash
+git commit -m "docs: reestrutura readme com foco devops AB#7"
+```
+
+---
+
+## 9. Azure Repos
+
+O código fonte foi importado para o **Azure Repos**, mantendo Git como sistema de versionamento.
+
+### Branches principais
+
+| Branch                        | Finalidade                                |
+| ----------------------------- | ----------------------------------------- |
+| `main`                        | Branch principal protegida                |
+| `feature/AB1-devops-pipeline` | Branch de implementação da entrega DevOps |
+
+### Fluxo adotado
+
+1. Código importado para o Azure Repos.
+2. Criação de branch de feature.
+3. Commits vinculados às tasks do Azure Boards.
+4. Abertura de Pull Request para a `main`.
+5. Validação por políticas de branch.
+6. Merge na `main`.
+7. Execução automática da pipeline.
+
+---
+
+## 10. Proteção da Branch Main
+
+A branch `main` foi configurada com políticas para garantir controle e rastreabilidade.
+
+| Política                   | Configuração                                           |
+| -------------------------- | ------------------------------------------------------ |
+| Pull Request obrigatório   | Sim                                                    |
+| Número mínimo de revisores | 1                                                      |
+| Revisor padrão             | Usuário RM561052                                       |
+| Work Item vinculado        | Obrigatório                                            |
+| Commits diretos na main    | Evitados pelo fluxo de PR                              |
+| Aprovação própria          | Permitida para simulação acadêmica, conforme enunciado |
+
+Essa configuração garante que alterações relevantes sejam feitas via branch, revisadas e vinculadas a uma tarefa do Azure Boards.
+
+---
+
+## 11. Infraestrutura Azure via Azure CLI
+
+A infraestrutura foi provisionada por script Azure CLI, localizado em:
+
+```txt
+/scripts/script-infra-create.sh
+```
+
+### Recursos criados
+
+| Recurso                  | Nome                 |
+| ------------------------ | -------------------- |
+| Resource Group           | `rg-argus-rm561052`  |
+| Azure Container Registry | `acrargusrm561052`   |
+| Azure Container Instance | `aci-argus-rm561052` |
+| DNS Label                | `argus-rm561052-api` |
+
+### Estratégia de deploy
+
+A estratégia utilizada foi:
+
+```txt
+Container + Azure Container Registry + Azure Container Instance
+```
+
+O **Azure Container Registry** armazena a imagem Docker da API.
+O **Azure Container Instance** executa a imagem em nuvem com endpoint público.
+
+---
+
+## 12. Estrutura Obrigatória da Entrega
+
+O repositório foi organizado para atender aos requisitos da disciplina.
+
+```txt
+ARGUS-OPERATIONS-DOTNET-DEVOPS
+├── Argus.Operations.API
+├── Argus.Operations.Application
+├── Argus.Operations.Domain
+├── Argus.Operations.Infrastructure
+├── Argus.Operations.Tests
+├── dockerfiles
+│   └── Dockerfile
+├── scripts
+│   ├── script-infra-create.sh
+│   ├── script-bd.sql
+│   └── seed-dados-teste.sql
+├── docs
+│   ├── estrutura-entrega.md
+│   ├── branch-policy.md
+│   └── arquitetura-macro.md
+├── azure-pipeline.yml
+├── Argus.Operations.sln
+└── README.md
+```
+
+### Arquivos obrigatórios
+
+| Arquivo                          | Descrição                                               |
+| -------------------------------- | ------------------------------------------------------- |
+| `scripts/script-infra-create.sh` | Script Azure CLI para provisionamento da infraestrutura |
+| `scripts/script-bd.sql`          | DDL dos objetos de banco                                |
+| `scripts/seed-dados-teste.sql`   | Dados iniciais para testes                              |
+| `dockerfiles/Dockerfile`         | Dockerfile da API .NET                                  |
+| `azure-pipeline.yml`             | Pipeline CI/CD do Azure DevOps                          |
+| `README.md`                      | Documentação da solução e da entrega DevOps             |
+
+---
+
+## 13. Pipeline CI/CD
+
+A pipeline está definida no arquivo:
+
+```txt
+azure-pipeline.yml
+```
+
+Ela é acionada automaticamente após alterações na branch `main`.
+
+```mermaid
+flowchart TD
+    Start[Merge na main] --> Trigger[Trigger automático]
+    Trigger --> StageBuild[Stage 1 - Build]
+    StageBuild --> Restore[dotnet restore]
+    Restore --> Build[dotnet build]
+    Build --> Tests[dotnet test]
+    Tests --> TestResults[Publicar resultados de teste]
+    TestResults --> Artifact[Publicar artefato]
+
+    Artifact --> StageDeploy[Stage 2 - Docker e Deploy]
+    StageDeploy --> DockerBuild[Docker build]
+    DockerBuild --> PushACR[Push para ACR]
+    PushACR --> DeleteACI[Remove ACI anterior]
+    DeleteACI --> CreateACI[Cria ACI com imagem latest]
+    CreateACI --> Published[API publicada em nuvem]
+```
+
+### Stage 1 — Build
+
+O estágio de Build executa:
+
+1. Instalação do SDK .NET 9.
+2. Restore das dependências.
+3. Build da solution.
+4. Execução dos testes automatizados.
+5. Publicação dos resultados de teste.
+6. Publicação do artefato da API.
+
+### Stage 2 — Docker e Deploy
+
+O estágio de Deploy executa:
+
+1. Login no Azure.
+2. Login no Azure Container Registry.
+3. Build da imagem Docker.
+4. Push da imagem para o ACR.
+5. Remoção do Azure Container Instance anterior.
+6. Criação de novo Azure Container Instance com a imagem atualizada.
+7. Exibição do endpoint público da API.
+
+---
+
+## 14. Docker
+
+A API foi containerizada utilizando o arquivo:
+
+```txt
+dockerfiles/Dockerfile
+```
+
+### Build local da imagem
+
+```bash
+docker build -f dockerfiles/Dockerfile -t argus-operations-api .
+```
+
+### Execução local do container
+
+```bash
+docker run -p 8080:8080 argus-operations-api
+```
+
+Endpoint local:
+
+```txt
+http://localhost:8080
+```
+
+---
+
+## 15. Variáveis de Ambiente e Segurança
+
+Dados sensíveis não devem ser expostos no código fonte.
+
+A aplicação utiliza variáveis de ambiente para configurações sensíveis, como conexão com banco e autenticação.
+
+Exemplos:
+
+```txt
+ASPNETCORE_ENVIRONMENT=Production
+ASPNETCORE_URLS=http://+:8080
+ConnectionStrings__DefaultConnection=CONFIGURADO_EM_AMBIENTE_SEGURO
+Jwt__Key=CONFIGURADO_EM_AMBIENTE_SEGURO
+Jwt__Issuer=CONFIGURADO_EM_AMBIENTE_SEGURO
+Jwt__Audience=CONFIGURADO_EM_AMBIENTE_SEGURO
+```
+
+Na entrega, os dados sensíveis devem ser protegidos por:
+
+* Azure DevOps Service Connection;
+* variáveis secretas da pipeline;
+* variáveis de ambiente do container;
+* configurações seguras fora do repositório.
+
+---
+
+## 16. Banco de Dados
+
+O script DDL dos objetos do banco está versionado em:
+
+```txt
+scripts/script-bd.sql
+```
+
+O script de carga de dados de teste está em:
+
+```txt
+scripts/seed-dados-teste.sql
+```
+
+Durante a demonstração, a persistência das operações CRUD deve ser validada diretamente no banco por comandos `SELECT`.
+
+Exemplos:
+
+```sql
+SELECT * FROM TB_BRIGADAS;
+SELECT * FROM TB_RECURSOS;
+```
+
+---
+
+## 17. Endpoints da API
+
+A API expõe endpoints REST em JSON e possui documentação via Swagger.
+
+Swagger local ou publicado:
+
+```txt
+/swagger
+```
+
+### Autenticação
+
+| Método | Endpoint             | Descrição                             |
+| ------ | -------------------- | ------------------------------------- |
+| POST   | `/api/auth/login`    | Realiza login e retorna token JWT     |
+| POST   | `/api/auth/register` | Registra novo usuário                 |
+| GET    | `/api/auth/me`       | Retorna dados do usuário autenticado  |
+| PUT    | `/api/auth/me`       | Atualiza dados do usuário autenticado |
+
+### Alertas e Focos
+
+| Método | Endpoint                             | Descrição                          |
+| ------ | ------------------------------------ | ---------------------------------- |
+| GET    | `/api/alertas`                       | Lista alertas críticos             |
+| GET    | `/api/alertas/{id}`                  | Busca alerta por ID                |
+| POST   | `/api/alertas/{id}/criar-ocorrencia` | Cria ocorrência a partir de alerta |
+| GET    | `/api/focos`                         | Lista focos de calor               |
+
+### Recursos principais
+
+Os recursos seguem o padrão REST:
+
+| Método | Padrão                | Descrição             |
+| ------ | --------------------- | --------------------- |
+| GET    | `/api/{recurso}`      | Lista registros       |
+| GET    | `/api/{recurso}/{id}` | Busca registro por ID |
+| POST   | `/api/{recurso}`      | Cria novo registro    |
+| PUT    | `/api/{recurso}/{id}` | Atualiza registro     |
+| DELETE | `/api/{recurso}/{id}` | Remove registro       |
+
+Recursos principais da API:
+
+```txt
+brigadas
+brigadistas
+recursos
+ocorrencias
+registroscampo
+usuarios
+```
+
+---
+
+## 18. Exemplos de CRUD em JSON
+
+Abaixo estão exemplos de payloads utilizados para validação da API. Os nomes dos campos podem ser ajustados conforme os DTOs finais exibidos no Swagger.
+
+---
+
+### CRUD 1 — Brigadas
+
+#### Create — POST `/api/brigadas`
+
+```json
+{
+  "nome": "Brigada DevOps Azure",
+  "baseOperacional": "Base FIAP",
+  "cidade": "São Paulo",
+  "estado": "SP",
+  "ativa": true
+}
+```
+
+#### Read — GET `/api/brigadas`
+
+```http
+GET /api/brigadas
+Authorization: Bearer {token}
+```
+
+#### Update — PUT `/api/brigadas/{id}`
+
+```json
+{
+  "id": 1,
+  "nome": "Brigada DevOps Azure Atualizada",
+  "baseOperacional": "Base FIAP Paulista",
+  "cidade": "São Paulo",
+  "estado": "SP",
+  "ativa": true
+}
+```
+
+#### Delete — DELETE `/api/brigadas/{id}`
+
+```http
+DELETE /api/brigadas/1
+Authorization: Bearer {token}
+```
+
+#### Validação no banco
+
+```sql
+SELECT * FROM TB_BRIGADAS;
+```
+
+---
+
+### CRUD 2 — Recursos
+
+#### Create — POST `/api/recursos`
+
+```json
+{
+  "nome": "Drone de Monitoramento DevOps",
+  "tipo": "Drone",
+  "quantidade": 2,
+  "status": "Disponivel"
+}
+```
+
+#### Read — GET `/api/recursos`
+
+```http
+GET /api/recursos
+Authorization: Bearer {token}
+```
+
+#### Update — PUT `/api/recursos/{id}`
+
+```json
+{
+  "id": 1,
+  "nome": "Drone de Monitoramento DevOps Atualizado",
+  "tipo": "Drone",
+  "quantidade": 3,
+  "status": "EmOperacao"
+}
+```
+
+#### Delete — DELETE `/api/recursos/{id}`
+
+```http
+DELETE /api/recursos/1
+Authorization: Bearer {token}
+```
+
+#### Validação no banco
+
+```sql
+SELECT * FROM TB_RECURSOS;
+```
+
+---
+
+## 19. Execução Local
 
 ### Pré-requisitos
 
-- .NET 9 SDK
-- Acesso ao banco Oracle do FIAP (ou outro Oracle 11+ com `UseOracleSQLCompatibility(DatabaseVersion19)`)
-- Opcional: `jq` para formatar respostas de cURL no terminal
+* .NET SDK 9
+* Git
+* Banco Oracle configurado
+* Visual Studio Code ou Visual Studio
+* Docker, opcional
 
-### Connection string
-
-A connection string do Oracle **não** está versionada. Configure via user-secrets:
-
-```bash
-cd Argus.Operations.API
-dotnet user-secrets init    # se ainda não inicializado
-dotnet user-secrets set "ConnectionStrings:OracleDb" \
-  "User Id=SEU_RM;Password=SUA_SENHA;Data Source=oracle.fiap.com.br:1521/ORCL"
-```
-
-Alternativamente, defina a variável de ambiente `ConnectionStrings__OracleDb`.
-
-### Migrations
-
-As migrations já estão versionadas em `Argus.Operations.Infrastructure/Migrations/`. Aplique-as no banco com:
+### Restaurar dependências
 
 ```bash
-dotnet ef database update --project Argus.Operations.Infrastructure --startup-project Argus.Operations.API
+dotnet restore Argus.Operations.sln
 ```
 
-Se preferir criar o schema diretamente via SQL (sem usar EF Core para gerenciar versões), o arquivo `argus-tabelas-dotnet.sql` na raiz contém o DDL consolidado.
+### Compilar
 
-### Rodando a API
+```bash
+dotnet build Argus.Operations.sln
+```
+
+### Executar testes
+
+```bash
+dotnet test Argus.Operations.sln
+```
+
+### Executar API
 
 ```bash
 dotnet run --project Argus.Operations.API
 ```
 
-A API sobe em `http://localhost:5215`. A documentação Swagger fica em `http://localhost:5215/swagger`.
+---
 
-No primeiro startup, o `UsuariosSeeder` cria automaticamente o usuário administrador (idempotente — startups subsequentes verificam por email antes de inserir).
+## 20. Testes Automatizados
 
-## Autenticação e autorização
+Os testes ficam no projeto:
 
-A API usa JWT Bearer. O fluxo padrão é: o cliente faz POST em `/api/auth/login` com email/senha, recebe um token, e envia esse token no header `Authorization: Bearer <token>` em todas as requisições subsequentes.
-
-### Credenciais de teste
-
-| Email | Senha | Perfil | Como foi criado |
-|---|---|---|---|
-| `admin@argus.com` | `Admin@123` | Admin | Seed automático no startup |
-| `brig@argus.com` | `Brig@123` | Brigadista | Registrado via `POST /api/auth/register` durante o desenvolvimento |
-
-Os usuários persistem no Oracle entre restarts da API. Para resetar, basta deletar as linhas correspondentes em `USUARIO`. Para criar um novo usuário pelo `POST /api/auth/register`, veja [Como testar no Swagger](#como-testar-no-swagger) — usa o código de convite `ARGUS-2026`.
-
-### Login pelo Swagger
-
-1. Abra `http://localhost:5215/swagger`.
-2. Em **POST `/api/auth/login`**, clique em "Try it out" e cole:
-   ```json
-   { "email": "admin@argus.com", "senha": "Admin@123" }
-   ```
-3. Copie o valor do campo `token` da resposta.
-4. Clique no botão **Authorize** no topo da página, cole `Bearer <token>` (com o prefixo `Bearer`), confirme e feche o modal.
-5. Todos os endpoints protegidos agora vão receber o header automaticamente.
-
-Para trocar de usuário durante os testes: Authorize > Logout > cola o novo token.
-
-### Endpoint de inspeção
-
-O endpoint `GET /api/auth/me` devolve as claims do token atual e indica em quais roles o usuário está. É útil tanto para debug quanto para o consumo pelo aplicativo mobile.
-
-### Registro de novos usuários
-
-`POST /api/auth/register` é público e cria sempre um **Brigadista** (para criar Coordenadores ou Admins é preciso editar o `AdminSeed` no `appsettings.json` ou inserir direto no banco). Exige um campo `codigoConvite` configurado em `Auth:CodigoConvite` — exemplo curl pronto em [Como testar no Swagger](#como-testar-no-swagger).
-
-Campos do payload:
-
-| Campo | Obrigatório | Restrição | Descrição |
-|---|---|---|---|
-| `nome` | sim | máx 150 | Nome completo |
-| `email` | sim | formato e-mail, máx 150, único | Identidade de login |
-| `telefone` | sim | máx 20 | Contato principal |
-| `nomeEmergencia` | não | máx 100 | Nome da pessoa a acionar em emergência |
-| `telefoneEmergencia` | não | máx 20 | Telefone da pessoa a acionar em emergência |
-| `relacaoEmergencia` | não | máx 30 | Relação com o brigadista (ex.: "Mãe", "Cônjuge", "Irmão") |
-| `senha` | sim | mín 6 caracteres | É hasheada com BCrypt (workfactor 11) antes de gravar |
-| `codigoConvite` | sim | igual ao configurado | Verificação de inscrição autorizada |
-
-Os 3 campos do contato de emergência andam juntos por convenção (todos preenchidos ou nenhum). A validação dessa coesão fica a cargo do cliente — o mobile mostra/esconde o trio como bloco único.
-
-## Matriz de permissões
-
-| Endpoint | Admin | Coordenador | Brigadista |
-|---|:-:|:-:|:-:|
-| CRUD `/api/usuarios` | sim | nao | nao |
-| GET `/api/brigadas`, `/brigadistas`, `/recursos` | sim | sim | sim |
-| POST/PUT/DELETE em `/brigadas`, `/brigadistas`, `/recursos` | sim | sim | nao |
-| GET `/api/ocorrencias` | sim | sim | sim |
-| PUT `/api/ocorrencias` (atualizar status em campo) | sim | sim | sim |
-| POST/DELETE `/api/ocorrencias` | sim | sim | nao |
-| GET `/api/registroscampo` | sim | sim | sim |
-| POST/PUT/DELETE `/api/registroscampo` | sim | sim | só na própria brigada¹ |
-
-¹ **Brigadista só pode escrever (criar/editar/deletar) registros de ocorrências da própria brigada** — `Ocorrencia.BrigadaId` precisa bater com a brigada do `Brigadista` vinculado ao `Usuario` logado (`Usuario.BrigadistaId → Brigadista.BrigadaId`). Se o Usuario brigadista não tiver vínculo (`BrigadistaId == null`), também recebe 403 nas escritas — fica como "voluntário pré-vinculação". Admin/Coordenador escrevem em qualquer brigada.
-
-A restrição é aplicada em duas camadas. No backend, atributos `[Authorize(Roles = "...")]` controlam o acesso a cada endpoint, e a constante única `Roles.AdminECoordenador` evita strings mágicas espalhadas pelo código. No JWT, o claim `role` carrega o perfil do usuário, lido a partir do enum `PerfilUsuario.ToString()`. A regra granular por brigada em `/api/registroscampo` é aplicada **em código** (checagem programática contra o banco no `RegistrosCampoController`), porque atributos `[Authorize]` não cobrem regras que dependem de dados — coberto por testes que incluem caso de bypass (brigadista tentando trocar `OcorrenciaId` no body pra forjar acesso).
-
-## Endpoints
-
-### Autenticação (`/api/auth`)
-
-| Método | Rota | Auth | Descrição |
-|---|---|---|---|
-| POST | `/login` | público | autentica e devolve JWT |
-| POST | `/register` | público (exige `codigoConvite`) | cria novo Brigadista |
-| GET | `/me` | qualquer logado | devolve claims e roles do token atual |
-| PUT | `/me` | qualquer logado | usuário edita o próprio perfil (nome, telefone, contato de emergência) — nunca toca em `Perfil`, `Ativo`, `Email`, `SenhaHash` |
-
-### Integração com Java
-
-| Método | Rota | Auth | Descrição |
-|---|---|---|---|
-| GET | `/api/alertas` | qualquer logado | proxy pra API Java; lista alertas críticos filtrados pelo trigger PL/SQL (vindos da NASA FIRMS) |
-| GET | `/api/alertas/{id}` | qualquer logado | proxy pra API Java; devolve um alerta específico |
-| POST | `/api/alertas/{id}/criar-ocorrencia` | Admin/Coordenador | "promove" o alerta a uma ocorrência operacional — busca o alerta no Java, monta a descrição a partir do título + descrição + recomendação operacional, e cria a ocorrência atribuída à brigada/brigadista informados |
-| GET | `/api/focos` | qualquer logado | proxy pra API Java; lista focos de calor brutos (NASA FIRMS) usados pelo mapa do mobile |
-
-### Recursos do domínio
-
-Todos os controllers seguem o padrão CRUD:
-
-| Método | Rota | Função |
-|---|---|---|
-| GET | `/api/{recurso}` | lista todos |
-| GET | `/api/{recurso}/{id}` | busca por id (404 se não existir) |
-| POST | `/api/{recurso}` | cria (devolve 201 com `Location` para o `GET /{id}`) |
-| PUT | `/api/{recurso}/{id}` | atualiza (204 No Content; 400 se id da URL ≠ id do corpo) |
-| DELETE | `/api/{recurso}/{id}` | remove (204 No Content) |
-
-Onde `{recurso}` é um de: `brigadas`, `brigadistas`, `recursos`, `ocorrencias`, `registroscampo`, `usuarios`.
-
-## Como testar no Swagger
-
-A API entrega a documentação interativa em `http://localhost:5215/swagger`. Os passos abaixo cobrem o fluxo típico de avaliação — autenticar uma vez, depois exercitar cada endpoint com os payloads prontos.
-
-**1. Faça login como Admin** (`POST /api/auth/login`):
-
-```json
-{ "email": "admin@argus.com", "senha": "Admin@123" }
+```txt
+Argus.Operations.Tests
 ```
 
-Copie o valor do campo `token` na resposta.
-
-**2. Clique no botão 🔒 Authorize** no topo da página, cole `Bearer <token>` (com o prefixo `Bearer ` e um espaço) e confirme. Todos os endpoints protegidos passam a enviar o header automaticamente.
-
-**3. Para testar como Brigadista** (perfil restrito), repita o login com `brig@argus.com` / `Brig@123` e troque o token no Authorize.
-
-A partir daqui é só ir nos endpoints, abrir **Try it out**, colar o JSON correspondente e clicar **Execute**. Os payloads abaixo cobrem todos os endpoints que aceitam corpo — os GETs (lista e busca por id) não precisam de payload, só rodar Execute.
-
-### `POST /api/auth/register` — auto-cadastro de Brigadista (público)
-
-`codigoConvite` precisa bater com `Auth:CodigoConvite` — atualmente **`ARGUS-2026`**. Os 3 campos de emergência são opcionais e devem andar juntos.
-
-```json
-{
-  "nome": "Brigadista de Teste",
-  "email": "teste@argus.com",
-  "telefone": "11900000000",
-  "nomeEmergencia": "Mãe do Teste",
-  "telefoneEmergencia": "11988888888",
-  "relacaoEmergencia": "Mãe",
-  "senha": "Senha@123",
-  "codigoConvite": "ARGUS-2026"
-}
-```
-
-Resposta: `200 OK` com `token`, `expiraEm` e `usuario` (perfil Brigadista, `brigadistaId` preenchido se o email bateu com algum Brigadista cadastrado — ver "demonstrando a auto-vinculação" abaixo).
-
-### Demonstrando a auto-vinculação `Usuario` ↔ `Brigadista`
-
-Pra ver a vinculação automática por email acontecendo (padrão SSO descrito em [Decisões técnicas](#decisões-técnicas-relevantes)):
-
-1. Login como admin (`admin@argus.com` / `Admin@123`), autoriza no Swagger
-2. `GET /api/brigadistas` — escolha um da lista e anote o **email** (ex.: `maria.silva@argus.com`, id 1)
-3. **Logout** no Authorize
-4. `POST /api/auth/register` com o **mesmo email** que você anotou:
-   ```json
-   {
-     "nome": "Maria Silva",
-     "email": "maria.silva@argus.com",
-     "telefone": "11900000000",
-     "senha": "Senha@123",
-     "codigoConvite": "ARGUS-2026"
-   }
-   ```
-5. Na resposta, o objeto `usuario` vai vir com `brigadistaId: 1` preenchido — a vinculação aconteceu automaticamente pelo email
-6. Login com o user recém-criado → `GET /api/auth/me` confirma o claim/contexto
-
-Se você usar um email que **não bate** com nenhum brigadista (ex.: `aleatorio@teste.com`), o cadastro funciona mas o `brigadistaId` vem `null`. Admin pode vincular depois via `PUT /api/usuarios/{id}` passando o `brigadistaId`.
-
-### `PUT /api/auth/me` — usuário atualiza o próprio perfil
-
-Qualquer perfil autenticado. Nunca altera `Perfil`, `Ativo`, `Email` ou `SenhaHash`.
-
-```json
-{
-  "nome": "Brigadista Teste Atualizado",
-  "telefone": "11912345678",
-  "nomeEmergencia": "Pai do Teste",
-  "telefoneEmergencia": "11977777777",
-  "relacaoEmergencia": "Pai"
-}
-```
-
-Resposta: `204 No Content`.
-
-### `POST /api/brigadas` — criar brigada (Admin/Coordenador)
-
-```json
-{
-  "nome": "Brigada PrevFogo Cerrado Norte",
-  "baseOperacional": "Brasília, DF",
-  "telefone": "6133331234",
-  "ativa": true
-}
-```
-
-### `POST /api/brigadistas` — criar brigadista (Admin/Coordenador)
-
-```json
-{
-  "nome": "Maria Silva",
-  "matricula": "BRG-042",
-  "email": "maria.silva@argus.com",
-  "telefone": "11987654321",
-  "funcao": "Líder de Esquadrão",
-  "ativo": true,
-  "dataAdmissao": "2024-03-15T00:00:00",
-  "brigadaId": 1
-}
-```
-
-### `POST /api/recursos` — criar recurso (Admin/Coordenador)
-
-`tipo` é enum int: `1` = Veiculo, `2` = Ferramenta, `3` = EPI, `4` = Comunicacao.
-
-```json
-{
-  "nome": "Caminhão-pipa Mercedes 1620",
-  "tipo": 1,
-  "disponivel": true,
-  "brigadaId": 1
-}
-```
-
-### `POST /api/ocorrencias` — abrir ocorrência manualmente (Admin/Coordenador)
-
-`status` é enum int: `1` = Aberta, `2` = EmAtendimento, `3` = Controlada, `4` = Finalizada. `alertaId` é opcional — `null` para ocorrência sem alerta vinculado.
-
-```json
-{
-  "descricao": "Foco de incêndio em vegetação seca, vento moderado",
-  "latitude": -15.789,
-  "longitude": -47.882,
-  "status": 1,
-  "dataAbertura": "2026-06-01T14:30:00",
-  "brigadistaId": 1,
-  "brigadaId": 1,
-  "alertaId": null
-}
-```
-
-### `PUT /api/ocorrencias/{id}` — atualizar status (qualquer perfil logado)
-
-Brigadistas podem dar PUT pra registrar mudança de status (atendimento → finalizada) mesmo sem permissão de criar ou deletar. Lembre de **trocar o token pro de Brigadista** antes de tentar pra ver isso funcionar. O `id` no corpo precisa bater com o `id` da URL.
-
-```json
-{
-  "id": 1,
-  "descricao": "Foco extinto e área monitorada",
-  "latitude": -15.789,
-  "longitude": -47.882,
-  "status": 4,
-  "dataAbertura": "2026-06-01T14:30:00",
-  "dataFinalizacao": "2026-06-01T17:45:00",
-  "brigadistaId": 1,
-  "brigadaId": 1
-}
-```
-
-Resposta: `204 No Content`.
-
-### `POST /api/alertas/{id}/criar-ocorrencia` — promover alerta a ocorrência (Admin/Coordenador)
-
-Endpoint estrela do projeto: busca o alerta no Java pelo proxy, monta a descrição com `titulo` + `descricao` + `recomendacaoOperacional` do alerta e cria a ocorrência já vinculada. Se `descricao` vier `null`, o servidor monta automaticamente; se preenchida, sobrescreve. Coloque o id de um alerta real (ex.: `114`) na URL.
-
-```json
-{
-  "brigadaId": 1,
-  "brigadistaId": 1,
-  "latitude": -16.5,
-  "longitude": -56.5,
-  "descricao": null
-}
-```
-
-Resposta: `201 Created` com a `Ocorrencia` (já com `alertaId` preenchido). Erros: `404` se o alerta não existe no Java, `400` se brigada/brigadista não existe no banco. Esse mesmo fluxo é automatizado pelo [consumer RabbitMQ](#mensageria-assíncrona-rabbitmq) — o endpoint manual continua existindo como fallback para ocorrências sem alerta.
-
-### `POST /api/registroscampo` — evidência de campo
-
-Foto + GPS + observação coletados pelo brigadista durante o atendimento. Uma ocorrência aceita N registros.
-
-```json
-{
-  "observacao": "Frente do fogo controlada. Solicitando reforço para extinção total.",
-  "urlFoto": "https://storage.argus.com/registros/2026-06-01-001.jpg",
-  "latitude": -15.7891,
-  "longitude": -47.8823,
-  "dataRegistro": "2026-06-01T15:20:00",
-  "ocorrenciaId": 1
-}
-```
-
-### `POST /api/usuarios` — criar usuário (apenas Admin)
-
-Diferente do `/api/auth/register` (público e Brigadista-only), esta rota é Admin-only e permite definir o `perfil` direto. Enum: `1` = Admin, `2` = Coordenador, `3` = Brigadista.
-
-```json
-{
-  "nome": "Coordenador Regional Norte",
-  "email": "coord.norte@argus.com",
-  "telefone": "92988887777",
-  "senha": "Coord@123",
-  "perfil": 2
-}
-```
-
-### `PUT /api/{recurso}/{id}` — padrão de update em todos os CRUDs
-
-Toda entidade (`brigadas`, `brigadistas`, `recursos`, `ocorrencias`, `registroscampo`, `usuarios`) aceita PUT com **o mesmo body do POST + o `id` repetido no corpo**. O id do corpo precisa bater com o id da URL, senão retorna `400`. Resposta padrão: `204 No Content`. Exemplo para `PUT /api/brigadas/1`:
-
-```json
-{
-  "id": 1,
-  "nome": "Brigada PrevFogo Cerrado Norte (renomeada)",
-  "baseOperacional": "Brasília, DF",
-  "telefone": "6133331234",
-  "ativa": false
-}
-```
-
-### Cenários que demonstram a matriz de permissões
-
-Pra ver a autorização por role em ação, faça login como Brigadista (`brig@argus.com` / `Brig@123`) e tente:
-
-- **`DELETE /api/brigadas/1`** → esperado `403 Forbidden` (DELETE é Admin/Coordenador-only)
-- **`GET /api/usuarios`** → esperado `403 Forbidden` (qualquer operação em `/api/usuarios` é Admin-only)
-
-Volte pro token de Admin e os mesmos endpoints respondem `204` e `200` respectivamente.
-
-## Tratamento global de erros
-
-Um `GlobalExceptionHandler` registrado via `IExceptionHandler` intercepta exceções não tratadas e devolve um `ProblemDetails` consistente — traduz erros de banco e de chamadas externas em status HTTP semanticamente corretos, em vez de devolver 500 cru com stack trace exposta.
-
-| Origem | Cenário | Status HTTP | Título |
-|---|---|---|---|
-| Oracle `ORA-00001` | Constraint UNIQUE violada (ex.: email duplicado) | 409 Conflict | Registro duplicado |
-| Oracle `ORA-02291` | FK insert: ID referenciado não existe | 400 Bad Request | Referência inválida |
-| Oracle `ORA-02292` | FK delete: registro tem filhos | 409 Conflict | Registro com dependências |
-| Oracle `ORA-12541 / 12545 / 12170` | TNS: banco inacessível | 503 Service Unavailable | Banco indisponível |
-| Outro `DbUpdateException` | Demais erros de gravação | 500 | Erro ao salvar no banco |
-| `HttpRequestException` | Chamada à API Java falhou (Java fora do ar) | 503 Service Unavailable | API externa indisponível |
-| `TaskCanceledException` | Timeout (>10s) em chamada externa | 504 Gateway Timeout | Timeout em API externa |
-| Demais exceções | Bugs ou casos não previstos | 500 | Erro interno |
-
-Os códigos Oracle são detectados via varredura da cadeia de `InnerException` — erros de conexão (12541/12545) podem aparecer encapsulados em wrappers diferentes do `DbUpdateException` típico de violações de integridade.
-
-Exemplo de resposta para um `DELETE /api/brigadas/1` quando há brigadistas vinculados à brigada:
-
-```json
-{
-  "type": "https://httpstatuses.io/409",
-  "title": "Registro com dependências",
-  "status": 409,
-  "detail": "Esse registro está sendo referenciado por outros e não pode ser removido.",
-  "instance": "/api/brigadas/1"
-}
-```
-
-## Health check
-
-`GET /health` é público (sem auth) e retorna um JSON com o status geral e o resultado do check do banco. Útil para load balancers, ferramentas de monitoring e para confirmar rapidamente se a API e a conexão Oracle estão de pé.
+Execução local:
 
 ```bash
-curl -s http://localhost:5215/health | jq
+dotnet test Argus.Operations.sln
 ```
 
-Resposta típica:
-
-```json
-{
-  "status": "Healthy",
-  "totalDurationMs": 28.4,
-  "checks": [
-    { "name": "oracle-db", "status": "Healthy", "durationMs": 28.1, "error": null }
-  ]
-}
-```
-
-Quando o Oracle está fora, `status` vira `Unhealthy`, o HTTP é 503 e o campo `error` traz o motivo retornado pelo provider.
-
-## Integração com a API Java
-
-O Argus opera com dois backends em domínios distintos: o **Java** ([argus-intelligence-api](https://github.com/alanerochaa/argus-intelligence-api)), responsável pela detecção de focos de incêndio via satélite (geração de alertas), e o **.NET** (este projeto), responsável pelas operações de resposta em campo. A integração entre eles acontece em três níveis.
-
-**Nível 1 — referência por id (cross-schema).** Cada microserviço opera contra **seu próprio schema** no Oracle FIAP (a equipe usa contas distintas — Java na conta da integrante de Intelligence, .NET nesta conta). A entidade `Ocorrencia` carrega um campo `AlertaId` (nullable) com o identificador do alerta do lado do Java, sem qualquer constraint física entre os bancos — é uma "soft foreign key" resolvida em tempo de aplicação. A motivação prática dessa separação foi evitar o limite de `SESSIONS_PER_USER = 10` do servidor FIAP, que era recorrentemente saturado quando Java + .NET + SQL Developer + IDE competiam pela mesma conta.
-
-**Nível 2 — chamada HTTP via client tipado.** Um `HttpClient` tipado (`IAlertaJavaClient` na Application, `AlertaJavaClient` na Infrastructure) faz requisições à API Java pra buscar os detalhes de um alerta específico. O endpoint `GET /api/alertas/{id}` deste projeto serve como proxy pra API Java, o que permite ao cliente mobile consultar alertas pelo mesmo backend que já está autenticando. O cliente também é tolerante ao envelope HATEOAS adotado pela API Java na listagem (`_embedded.alertaResponseDTOList`) sem precisar tipar todo o wrapper.
-
-**Nível 3 — mensageria assíncrona via fila AMQP.** A integração mais recente é via broker AMQP gerenciado (CloudAMQP/LavinMQ): a API Java publica alertas críticos na fila `argus.alertas` e o `AlertaConsumerService` deste projeto consome em background, criando ocorrências operacionais sem ação manual. Detalhes na seção [Mensageria assíncrona (RabbitMQ)](#mensageria-assíncrona-rabbitmq).
-
-**Configuração:** a URL base da API Java é configurável em `appsettings.json`:
-
-```json
-"JavaApi": {
-  "BaseUrl": "http://localhost:8080"
-}
-```
-
-Pode ser sobrescrita via user-secrets (`JavaApi:BaseUrl`) ou variável de ambiente (`JavaApi__BaseUrl`). O timeout default é 10 segundos.
-
-**Tratamento de erros da chamada externa.** `HttpRequestException` (Java fora) vira 503 e `TaskCanceledException` (timeout >10s) vira 504, ambos via `GlobalExceptionHandler` — ver [Tratamento global de erros](#tratamento-global-de-erros) para a tabela consolidada.
-
-**Contrato real do retorno da API Java**, espelhado do `AlertaResponseDTO`:
-
-```csharp
-record AlertaDto(
-    long Id,
-    string Titulo,
-    string? Descricao,
-    string Nivel,                 // BAIXO | MEDIO | ALTO | CRITICO
-    string Status,                // ABERTO | EM_ANALISE | ENCAMINHADO | ENCERRADO
-    double? ScoreRisco,
-    string? RecomendacaoOperacional,
-    DateTime DataGeracao,
-    DateTime? DataAtualizacao,
-    long FocoCalorId              // FK pro foco de calor que originou o alerta
-);
-```
-
-Coordenadas (latitude/longitude) não estão no alerta — vivem na entidade `FocoCalor` referenciada por `FocoCalorId` e podem ser obtidas via `GET /api/focos`. O `FocoCalorDto` (em `Argus.Operations.Application/Integration/`) traz lat/long, FRP (Fire Radiative Power), temperatura estimada, satélite e sensor.
-
-## Mensageria assíncrona (RabbitMQ)
-
-Além do proxy HTTP, a API Java também publica eventos de alerta em uma fila AMQP gerenciada (CloudAMQP/LavinMQ). Quando um alerta de nível **ALTO** ou **CRITICO** é gerado, o publisher da API Java envia uma mensagem enriquecida (alerta + foco + região) para a fila `argus.alertas`. Esta API .NET consome a fila em background e converte cada mensagem em uma **ocorrência operacional**, sem qualquer ação manual do coordenador.
-
-O fluxo end-to-end:
-
-```mermaid
-flowchart LR
-    SAT["Satélite NASA FIRMS"] --> JV["API Java<br/>(Spring Boot)"]
-    JV -->|trigger PL/SQL| ORACLE[("Oracle")]
-    JV -->|"publica ALTO/CRITICO"| Q[("fila argus.alertas<br/>CloudAMQP")]
-    Q -->|consome| NET["API .NET<br/>AlertaConsumerService"]
-    NET -->|"cria Ocorrência (status=Aberta)"| ORACLE
-    NET -->|notifica| MOB["App Mobile<br/>(brigadista)"]
-```
-
-**`AlertaConsumerService`** é um `BackgroundService` registrado no `Program.cs` via `AddHostedService`. Roda em paralelo ao pipeline HTTP normal — o consumer conecta uma vez no startup, fica escutando a fila pelo tempo de vida da aplicação, e processa cada mensagem em scope próprio (cria um `IServiceScope` por mensagem para resolver o `ArgusDbContext`).
-
-**Garantias implementadas:**
-
-| Cenário | Comportamento |
-|---|---|
-| Alerta novo chega | Cria ocorrência com brigada/brigadista default (primeiros ativos do banco) + lat/long do foco |
-| Mesmo alerta entregue 2x (replay) | **Ack sem criar duplicata** — checa `db.Ocorrencias.AnyAsync(o => o.AlertaId == X)` antes de inserir |
-| Banco caiu durante processamento | Nack com **requeue=true** — mensagem volta pra fila pra retry automático |
-| Mensagem com JSON malformado | Nack **requeue=false** — vai pro DLQ, não fica em loop infinito |
-| Conexão AMQP cai | Auto-recovery do driver (10s) + loop externo reconnect (mais 10s) |
-| API restartando | `StopAsync` fecha channel + connection limpos |
-
-**Idempotência via `AlertaId`.** O Java garante que cada alerta tem um id único (auto-increment do Oracle). Quando o consumer recebe uma mensagem, primeiro verifica se já existe ocorrência com aquele `AlertaId`; se sim, apenas ack a mensagem sem criar nova. Isso protege contra:
-
-- Mensagem entregue mais de uma vez por race no broker (AMQP é at-least-once por design, não exactly-once)
-- Re-publish da Alane durante testes
-- Restart do consumer no meio do processamento
-
-**Por que `BasicQos(prefetchCount: 1)`.** Configurar prefetch baixo é deliberado — processa uma mensagem por vez. Em troca de menos throughput, ganha previsibilidade na ordem de criação das ocorrências e simplifica a defesa de idempotência (não tem mensagem "em voo" enquanto outra é processada).
-
-**Compatibilidade Java ↔ .NET no JSON.** O Spring Boot serializa `LocalDateTime` por padrão como array de inteiros `[year, month, day, hour, minute, second, nano]` quando `JavaTimeModule` não está configurado. Em vez de depender da config do lado Java, o consumer tem um `JavaLocalDateTimeConverter` (`JsonConverter<DateTime>`) que aceita tanto array Java quanto string ISO 8601 — torna a integração robusta mesmo se a Alane mudar a config do Jackson dela depois.
-
-**Configuração:**
-
-```json
-"RabbitMq": {
-  "QueueName": "argus.alertas"
-}
-```
-
-A `ConnectionString` (com credencial do broker) **nunca** é commitada — fica em user-secrets em dev e em Azure Application Settings em prod:
-
-```bash
-dotnet user-secrets set "RabbitMq:ConnectionString" "amqps://..."
-```
-
-**Por que mensageria além do proxy HTTP.** O proxy HTTP (`GET /api/alertas`) atende o caso "mobile abre a tela de alertas e quer ver a lista atual". A mensageria atende o caso "satélite acabou de detectar um foco crítico, brigada precisa saber AGORA". Os dois canais coexistem porque resolvem problemas diferentes — leitura sob demanda vs. push assíncrono.
-
-## Landing page institucional
-
-A API serve uma página HTML estática em `/` (`wwwroot/index.html`) com a mesma identidade visual da API Java (cores, logo, tipografia, layout de cards). Isso reforça o pitch de "**ecossistema único de dois microserviços**" em vez de "duas APIs independentes que conversam por acidente".
-
-A página apresenta:
-
-- Hero com logo do Argus e descrição da responsabilidade desta API (operações de campo)
-- Tags da stack (.NET 9, ASP.NET Core, EF Core, Oracle, JWT, BCrypt, Serilog, xUnit, Azure)
-- Hub de atalhos: Health Check, Swagger, GitHub, link pra API Java, identidade do token (`/api/auth/me`)
-- Cards de documentação técnica: Swagger UI, OpenAPI JSON, Health Check
-- Cards dos domínios de negócio: Brigadas, Brigadistas, Ocorrências, Recursos, Alertas (proxy), Focos (proxy)
-
-A camada de arquivos estáticos é habilitada por `app.UseDefaultFiles()` + `app.UseStaticFiles()` no `Program.cs`, posicionada depois do exception handler e antes do middleware de autenticação — assim a landing page é pública (qualquer um vê), mas as APIs sob `/api/...` continuam protegidas por JWT.
-
-## Testes automatizados
-
-O projeto `Argus.Operations.Tests` reúne testes unitários e integração-leve com xUnit, todos seguindo o padrão Arrange/Act/Assert com comentários explícitos para tornar a estrutura legível.
-
-```bash
-dotnet test
-```
-
-Cobertura atual (38 testes verdes em torno de 1 segundo):
-
-- **`BcryptPasswordHasherTests`**: garante que `Hash` produz valores não vazios e diferentes a cada chamada (salt aleatório do BCrypt), e que `Verify` aceita a senha correta e rejeita a errada.
-- **`TokenServiceTests`**: valida o formato do JWT gerado (header.payload.signature), a presença das claims básicas (`sub`, `email`, `name`), o claim de role correspondente ao `PerfilUsuario`, e a unicidade do `jti` em chamadas consecutivas (prevenção de replay).
-- **`AuthControllerTests`**: usa `ArgusDbContext` com provider InMemory para exercitar o fluxo completo de `/api/auth/login` (credenciais válidas, senha errada, email inexistente, usuário inativo) e `/api/auth/register` (código de convite correto, código errado, email já existente).
-- **`AlertasControllerTests`**: cobre o proxy `/api/alertas` (listagem e busca por id) e o endpoint `/api/alertas/{id}/criar-ocorrencia` que promove um alerta do Java a uma ocorrência operacional — testando caminho feliz, alerta inexistente no Java (404), brigada inexistente (400 com mensagem específica), brigadista inexistente (400) e herança automática da descrição quando não fornecida.
-- **`FocosControllerTests`**: valida o proxy `/api/focos` (mapa de calor), tanto com dados quanto com resposta vazia do Java.
-- **`RegistrosCampoControllerTests`**: cobre a autorização granular por brigada nos endpoints de escrita (Create/Update/Delete). 12 casos: caminho feliz pra brigadista na mesma brigada (201/204), bloqueio (`Forbid`) pra brigadista tentando escrever em ocorrência de outra brigada, bloqueio pra brigadista sem vínculo operacional, passe-livre pra Admin e Coordenador em qualquer brigada, `NotFound` quando ocorrência referenciada não existe, e **caso de anti-bypass** (brigadista tentando trocar `OcorrenciaId` no body do PUT pra forjar acesso — regra valida contra o registro ORIGINAL no banco).
-
-A camada de integração com Java usa **fakes manuais** (sem Moq) que implementam `IAlertaJavaClient` e `IFocoCalorJavaClient` — segue o padrão "sem mocks externos" já estabelecido no resto da suíte. A escolha de cobrir profundamente autenticação + integração é deliberada: o CRUD dos demais controllers é predominantemente código que delega ao EF Core, e seu comportamento é mais bem demonstrado via Swagger do que via testes que essencialmente testariam o próprio framework.
-
-## Estrutura de pastas
-
-```
-argus-operations/
-├── Argus.Operations.API/                  # Camada de apresentação (ASP.NET Core)
-│   ├── Auth/                              # Roles (constantes), helpers de autorização
-│   ├── Controllers/                       # AuthController, AlertasController, FocosController
-│   │                                      # + CRUDs (Brigadas, Brigadistas, Recursos,
-│   │                                      # Ocorrencias, RegistrosCampo, Usuarios)
-│   ├── DTOs/Auth/                         # LoginRequest, RegisterRequest, AuthResponse,
-│   │                                      # AtualizarPerfilRequest
-│   ├── DTOs/Ocorrencias/                  # CriarOcorrenciaDeAlertaRequest
-│   ├── DTOs/Usuarios/                     # UsuarioDtos (CRUD admin)
-│   ├── Exceptions/GlobalExceptionHandler  # IExceptionHandler + mapa Oracle/HTTP→ProblemDetails
-│   ├── Properties/launchSettings.json
-│   ├── appsettings.json                   # Jwt, Auth:CodigoConvite, JavaApi, RabbitMq, Serilog
-│   ├── Program.cs                         # Composição: DI, JWT, Swagger, Serilog, CORS,
-│   │                                      # CloudAMQP consumer, static files, pipeline
-│   └── wwwroot/                           # Landing page institucional (index.html + css + logo)
-│
-├── Argus.Operations.Application/          # Contratos de aplicação (sem dependências de infra)
-│   ├── Auth/                              # ITokenService, IPasswordHasher
-│   ├── Integration/                       # IAlertaJavaClient, IFocoCalorJavaClient,
-│   │                                      # AlertaDto, FocoCalorDto
-│   └── Messaging/                         # AlertaQueueDto (espelha a mensagem do RabbitMQ)
-│
-├── Argus.Operations.Infrastructure/       # Implementações de infra
-│   ├── Auth/                              # TokenService (JWT), BcryptPasswordHasher,
-│   │                                      # JwtSettings, AdminSeeder
-│   ├── Data/ArgusDbContext.cs             # Mapeamento EF Core ↔ Oracle
-│   ├── Integration/                       # AlertaJavaClient, FocoCalorJavaClient (HttpClient tipado)
-│   ├── Messaging/                         # AlertaConsumerService (BackgroundService) +
-│   │                                      # JavaLocalDateTimeConverter (compat Jackson)
-│   └── Migrations/                        # Migrations versionadas (EF Core)
-│
-├── Argus.Operations.Domain/               # Entidades puras
-│   ├── Entities/                          # Brigada, Brigadista, Recurso,
-│   │                                      # Ocorrencia, RegistroCampo, Usuario
-│   └── Enum/                              # PerfilUsuario, TipoRecurso, StatusOcorrencia
-│
-├── Argus.Operations.Tests/                # xUnit (38 testes)
-│   ├── Auth/                              # BcryptPasswordHasherTests, TokenServiceTests
-│   ├── Controllers/                       # AuthControllerTests, AlertasControllerTests,
-│   │                                      # FocosControllerTests, RegistrosCampoControllerTests
-│   └── Integration/                       # Fakes: FakeAlertaJavaClient, FakeFocoCalorJavaClient
-│
-├── argus-tabelas-dotnet.sql               # DDL consolidado (alternativa às migrations)
-├── seed-dados-teste.sql                   # Carga inicial (brigadas, brigadistas, recursos,
-│                                          # ocorrências de exemplo)
-└── Argus.Operations.sln
-```
-
-## Decisões técnicas relevantes
-
-Algumas escolhas de projeto que merecem nota:
-
-**Oracle pré-23ai e `UseOracleSQLCompatibility(DatabaseVersion19)`**. O Oracle da FIAP não suporta literais `TRUE`/`FALSE` em SQL (suporte só existe a partir do 23ai). Sem a configuração de compatibilidade, queries do EF Core que envolvem `bool` (como `AnyAsync(x => x.Ativo)`) emitem `CASE WHEN ... THEN TRUE ELSE FALSE END` e disparam `ORA-00904: "FALSE": invalid identifier`. Forçar a compatibilidade com a versão 19 faz o provider emitir `1`/`0`. Em paralelo, no `ArgusDbContext`, todas as colunas `bool` são mapeadas explicitamente como `NUMBER(1)` para evitar surpresa no schema gerado.
-
-**Swashbuckle 6.9 em vez do 10.x mais recente**. O Swashbuckle 10.x depende do Microsoft.OpenApi 2.x, que introduziu um bug na serialização de `OpenApiSecuritySchemeReference`: o requirement de Bearer JWT é gerado como `[{}]` no `swagger.json`, o que faz o Swagger UI não enviar o header `Authorization` mesmo após o usuário clicar em Authorize. O downgrade para 6.9 (que usa Microsoft.OpenApi 1.x e o padrão clássico de `OpenApiReference`) resolveu o problema sem precisar de filtros customizados.
-
-**`MapInboundClaims = false` e `RoleClaimType` explícito**. No .NET 8+ o handler default de JWT (`JsonWebTokenHandler`) popula o `ClaimsIdentity` de forma sutilmente diferente do antigo. Sem definir `RoleClaimType = ClaimTypes.Role` no `TokenValidationParameters`, `[Authorize(Roles = "...")]` falha **silenciosamente** — o claim de role chega no token mas `IsInRole` retorna `false` e o framework libera o acesso como se fosse `[Authorize]` sem roles. O `GET /api/auth/me` foi adicionado pra diagnosticar esse tipo de problema rapidamente.
-
-**Defense in depth no mobile**. Embora o app mobile aplique UI condicional (esconde botões que o usuário não pode usar), o backend não confia nisso: todo endpoint mantém seu `[Authorize(Roles = "...")]` ativo. A UI evita confusão e cliques sem efeito; o backend garante segurança real. Um aplicativo modificado ou uma chamada feita por fora ainda recebe 403 do servidor.
-
-**Separação `Usuario` x `Brigadista` com auto-vinculação por email (padrão SSO)**. Modelamos os dois como aggregates distintos: `Usuario` é o **contexto de autenticação** (quem tem credencial pra entrar no sistema), `Brigadista` é o **contexto operacional** (membro despachado pra ocorrências em campo). A ligação acontece via FK opcional `Usuario.BrigadistaId`. No `POST /api/auth/register`, se o email do novo usuário bater com algum `Brigadista` já cadastrado, o vínculo é estabelecido automaticamente — mesmo padrão que SSO como Slack/GitHub usam (você cria a conta, e fica vinculado aos workspaces/orgs onde seu email tá registrado). Caso o email não bata, o usuário fica como "voluntário pré-vinculação" e pode ser linkado depois pelo coordenador via `PUT /api/usuarios/{id}`. Essa separação reflete cenários reais: brigadistas voluntários cadastrados sem login, e admins/coordenadores administrativos sem necessariamente atuar em campo.
-
-**Serilog substituindo o `ILogger` padrão, posicionado ANTES do `UseExceptionHandler`**. O `ILogger` default do ASP.NET Core emite logs em texto simples e quebra cada request em 3-4 linhas separadas (start, action selecting, executing, completed). O Serilog com `UseSerilogRequestLogging()` consolida em uma linha estruturada por request (método, path, status, duração em ms) e permite que filtros por `SourceContext` sejam definidos sem recompilar — útil pra silenciar verbosidade do EF Core sem perder logs da aplicação. O detalhe sutil é o **posicionamento no pipeline**: `UseSerilogRequestLogging()` precisa vir antes de `UseExceptionHandler()`. Se vier depois, ele loga o status HTTP no momento em que a exception passa por ele (geralmente 500 default), antes do handler converter pra 503/504 com mensagem amigável — o log "mente" sobre o que o cliente realmente recebeu. Com a ordem correta, o exception handler "termina" o request primeiro (escrevendo 503 no response), e o request logging registra o status verdadeiro quando o pipeline retorna.
-
-**CORS aberto em dev (`AllowAnyOrigin`)**. A política `ArgusCors` libera qualquer origem, header e método. Isso é deliberado pro ambiente acadêmico: o app mobile (React Native em emulador ou device físico em rede local) bate na API a partir de IPs imprevisíveis, e o objetivo da disciplina não é demonstrar configuração fina de CORS — é demonstrar que o problema foi reconhecido e tratado. Em produção, a política seria restrita ao domínio publicado do app mobile via Application Settings. O posicionamento de `UseCors()` antes de `UseAuthentication()` é essencial pra que o preflight `OPTIONS` (que vai sem token) não retorne 401 antes de a policy ser avaliada.
-
-## Deploy na Azure
-
-A API é publicada no **Azure App Service**, que hospeda o runtime .NET 9 e expõe o Swagger publicamente. A conexão com o Oracle FIAP e o JWT secret são injetados como **Application Settings** no portal — nunca commitados no repositório (segue o padrão "User Secrets em dev, variável de ambiente em prod" cobrado pela disciplina).
-
-### Variáveis configuradas no App Service
-
-| Nome | Onde aparece no código | Propósito |
-|---|---|---|
-| `ConnectionStrings__OracleDb` | `appsettings.json` → seção `ConnectionStrings` | String de conexão com Oracle FIAP (usuário, senha, host, pool) |
-| `Jwt__Key` | `JwtSettings.Key` | Chave HMAC SHA-256 usada pra assinar e validar o JWT |
-| `Auth__CodigoConvite` | `AuthController` (registro de novo usuário) | Código fixo que o brigadista digita ao se cadastrar |
-| `JavaApi__BaseUrl` | `HttpClient` registrado no `Program.cs` | URL pública da API Java (alertas + focos) |
-| `RabbitMq__ConnectionString` | `AlertaConsumerService` | URL AMQP do CloudAMQP (formato `amqps://user:pass@host/vhost`) — consumida pelo BackgroundService |
-
-> Observação: o duplo underscore (`__`) é a forma do ASP.NET Core ler chaves hierárquicas a partir de variáveis de ambiente — equivale ao `:` usado no `appsettings.json` (`ConnectionStrings:OracleDb`).
-
-### URL do ambiente publicado
-
-A API está deployada em **Azure App Service (Linux, B1)** na região South Africa North:
-
-- 🌐 **Landing page institucional:** https://argus-operations-rm559561.azurewebsites.net
-- 📘 **Swagger UI:** https://argus-operations-rm559561.azurewebsites.net/swagger
-- ❤️ **Health check:** https://argus-operations-rm559561.azurewebsites.net/health
-- 📄 **OpenAPI JSON:** https://argus-operations-rm559561.azurewebsites.net/swagger/v1/swagger.json
-
-### Pipeline CI/CD
-
-Workflow GitHub Actions gerado pelo **Azure Deployment Center** com autenticação federada **OIDC** (User-assigned Managed Identity) — nenhum publish profile ou senha vai pro repositório, apenas IDs públicos das credenciais federadas. A cada `git push` na `main`, o pipeline executa: `dotnet restore` → `dotnet build` → `dotnet publish` no GitHub Runner → upload de artefato → deploy no App Service.
-
-Arquivo do workflow: [`.github/workflows/main_argus-operations-rm559561.yml`](.github/workflows/main_argus-operations-rm559561.yml).
-
-## Prints e evidências
-
-Galeria de evidências do projeto rodando. Os prints abaixo são gerados a partir da API publicada na Azure e do Swagger local — ficam em `docs/prints/` no repositório.
-
-### Swagger publicado
-
-![Swagger UI](docs/prints/swagger-ui.png)
-
-Lista completa de endpoints agrupados por controller, com botão **Authorize** ativo pra autenticação Bearer JWT.
-
-### Fluxo de autenticação
-
-![Login retornando JWT](docs/prints/auth-login.png)
-
-`POST /api/auth/login` devolvendo `token`, `expiraEm` e o objeto `usuario` (sem `senhaHash`).
-
-### Endpoint protegido funcionando
-
-![GET /api/brigadas autorizado](docs/prints/brigadas-list.png)
-
-`GET /api/brigadas` retornando 200 com token válido. Sem token → 401; com token de role insuficiente → 403.
-
-### Integração com a API Java
-
-![GET /api/alertas via proxy](docs/prints/alertas-proxy.png)
-
-`GET /api/alertas` proxy pra API Java (NASA FIRMS) — devolve a lista de alertas reais detectados por satélite.
-
-### Health check do Oracle
-
-![GET /health com Oracle ok](docs/prints/health-check.png)
-
-`GET /health` validando conexão ao Oracle via `AddDbContextCheck`. Resposta inclui status, duração total e duração do check específico do banco.
-
-### Testes automatizados verdes
-
-![dotnet test passando](docs/prints/dotnet-test.png)
-
-Suíte completa em xUnit rodando localmente — 38 testes cobrindo `AuthController`, `AlertasController`, `FocosController`, `RegistrosCampoController` (autorização granular por brigada), `PasswordHasher` e `TokenService`.
-
-## Integrantes
-
-| Nome | RM | Responsabilidade no Argus |
-|---|---|---|
-| Anna Beatriz de Araujo Bonfim | 559561 | .NET (esta API) + [Mobile (React Native)](https://github.com/annabonfim/argus-app) + parte de Compliance/TOGAF |
-| Alane Rocha da Silva | 561052 | Java Advanced ([Intelligence API](https://github.com/alanerochaa/argus-intelligence-api) + RabbitMQ) + PL/SQL + Compliance |
-| Maria Eduarda Araujo Penas | 560944 | DevOps & Cloud (Azure Pipelines) + Disruptive Architectures (IoT) + Compliance |
-
-**Turma:** TDS — FIAP
-**Projeto:** Global Solution 2026/1 — Argus
-**Data de entrega:** 09/06/2026
+Na pipeline, os testes são executados automaticamente e os resultados são publicados no Azure Pipelines.
+
+---
+
+## 21. Evidências que Devem Aparecer no Vídeo
+
+Durante o vídeo demonstrativo, devem ser evidenciados:
+
+| Etapa         | Evidência                                           |
+| ------------- | --------------------------------------------------- |
+| README        | Solução, conceito e arquitetura                     |
+| Azure Portal  | Resource Group, ACR e ACI criados                   |
+| Azure Boards  | Tasks criadas e vinculadas                          |
+| Azure Repos   | Código fonte importado                              |
+| Branch        | Branch `feature/AB1-devops-pipeline`                |
+| Pull Request  | PR para a main com Work Items                       |
+| Branch Policy | Main protegida com reviewer e Work Item obrigatório |
+| Pipeline CI   | Restore, build, testes e artefatos                  |
+| Pipeline CD   | Docker build, push no ACR e deploy no ACI           |
+| ACR           | Imagem Docker publicada                             |
+| ACI           | Container rodando em nuvem                          |
+| API           | Endpoint público acessível                          |
+| CRUD          | Create, Read, Update e Delete em duas tabelas       |
+| Banco         | SELECT comprovando persistência                     |
+| Boards final  | Tasks concluídas com links de PR/commits            |
+
+---
+
+## 22. Links da Entrega
+
+| Item                     | Link                          |
+| ------------------------ | ----------------------------- |
+| Organização Azure DevOps | `INSERIR_LINK_DA_ORGANIZACAO` |
+| Projeto Azure DevOps     | `INSERIR_LINK_DO_PROJETO`     |
+| Repositório Azure Repos  | `INSERIR_LINK_DO_REPOSITORIO` |
+| Pipeline Azure DevOps    | `INSERIR_LINK_DA_PIPELINE`    |
+| Endpoint público da API  | `INSERIR_ENDPOINT_DA_API`     |
+| Vídeo YouTube            | `INSERIR_LINK_DO_VIDEO`       |
+
+---
+
+## 23. Checklist da Entrega
+
+| Item                                 | Status                      |
+| ------------------------------------ | --------------------------- |
+| Projeto privado no Azure DevOps      | Concluído                   |
+| Código no Azure Repos                | Concluído                   |
+| Azure Boards com tasks               | Concluído                   |
+| Branch de feature criada             | Concluído                   |
+| Pull Request criado                  | Concluído                   |
+| Work Items vinculados                | Concluído                   |
+| Branch main protegida                | Concluído                   |
+| Script Azure CLI em `/scripts`       | Concluído                   |
+| Script `script-bd.sql` em `/scripts` | Concluído                   |
+| Dockerfile em `/dockerfiles`         | Concluído                   |
+| `azure-pipeline.yml` na raiz         | Concluído                   |
+| Pipeline de Build                    | Pendente de execução final  |
+| Publicação de testes                 | Pendente de execução final  |
+| Publicação de artefato               | Pendente de execução final  |
+| Deploy automático em ACI             | Pendente de execução final  |
+| CRUD em duas tabelas                 | Pendente de validação final |
+| SELECT no banco                      | Pendente de validação final |
+| Vídeo YouTube                        | Pendente                    |
+| PDF final                            | Pendente                    |
+
+---
+
+## 24. Conclusão
+
+Este projeto demonstra a aplicação prática de **DevOps Tools & Cloud Computing** em uma solução real desenvolvida em **C#/.NET**.
+
+A entrega contempla planejamento com Azure Boards, versionamento com Azure Repos, proteção de branch, Pull Request, integração contínua, testes automatizados, publicação de artefatos, containerização com Docker, infraestrutura via Azure CLI e deploy em nuvem com Azure Container Registry e Azure Container Instance.
+
+Com isso, o projeto atende aos principais requisitos da disciplina e demonstra um fluxo completo de desenvolvimento, entrega e publicação de uma API em ambiente cloud.
