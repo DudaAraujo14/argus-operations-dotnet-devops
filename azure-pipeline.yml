@@ -73,6 +73,8 @@ stages:
         ArtifactName: 'drop'
         publishLocation: 'Container'
 
+# Stage responsavel pelo deploy automatico no Azure Container Instance
+
 - stage: DockerAndDeploy
   displayName: 'Build Docker Image and Deploy to ACI'
   dependsOn: Build
